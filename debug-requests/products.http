@@ -40,3 +40,12 @@ Content-Type: application/json
   "discountPercent": 0,
   "category": ""
 }
+
+### List products (default page=1,limit=10)
+GET http://localhost:3000/products
+
+### List products with pagination
+GET http://localhost:3000/products?page=2&limit=2
+
+### Get product by id (replace with real id)
+GET http://localhost:3000/products/691188ff6a902afa3f69174d
