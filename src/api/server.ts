@@ -1,7 +1,7 @@
 import express from "express"
 import {errorHandler} from "../middleware/error.middleware"
-import {validateProductCreate} from "../types/dto/product.dto"
-import {createProduct,getProductById,listProducts} from "../services/product.service"
+import {validateProductCreate,validateProductUpdate} from "../types/dto/product.dto"
+import {createProduct,getProductById,listProducts,updateProduct,deleteProduct} from "../services/product.service"
 
 const app = express()
 
@@ -37,6 +37,24 @@ app.post("/products", async (req,res,next) => {
   } catch (e) {
     next(e)
   }
+})
+
+app.put("/products/:id", async (req,res,next) => {
+  try {
+    const {value,errors} = validateProductUpdate(req.body)
+    if (errors) return res.status(400).json({errors})
+    const updated = await updateProduct(req.params.id,value!)
+    if (!updated) return res.status(404).json({error:"Not Found"})
+    res.status(200).json(updated)
+  } catch (e) { next(e) }
+})
+
+app.delete("/products/:id", async (req,res,next) => {
+  try {
+    const ok = await deleteProduct(req.params.id)
+    if (!ok) return res.status(404).json({error:"Not Found"})
+    res.status(204).send()
+  } catch (e) { next(e) }
 })
 
 //404 propadnuti

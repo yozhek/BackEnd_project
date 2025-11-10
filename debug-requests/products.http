@@ -41,6 +41,9 @@ Content-Type: application/json
   "category": ""
 }
 
+
+
+
 ### List products (default page=1,limit=10)
 GET http://localhost:3000/products
 
@@ -49,3 +52,28 @@ GET http://localhost:3000/products?page=2&limit=2
 
 ### Get product by id (replace with real id)
 GET http://localhost:3000/products/691188ff6a902afa3f69174d
+
+
+
+
+### Update product by id (replace id)
+PUT http://localhost:3000/products/691188ff6a902afa3f69174c
+Content-Type: application/json
+
+{
+  "title": "iPhone Pro",
+  "price": 1299.99,
+  "discountPercent": 15,
+  "category": "electronics"
+}
+
+### Update product by id (partial update)
+PUT http://localhost:3000/products/691188ff6a902afa3f69174d
+Content-Type: application/json
+
+{
+  "price": 999.99
+}
+
+### Delete product by id (replace id)
+DELETE http://localhost:3000/products/691187bd6a902afa3f69174c

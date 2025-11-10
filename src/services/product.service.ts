@@ -1,6 +1,7 @@
 import {getDb} from "../database/mongo"
 import type {ProductCreateDTO} from "../types/dto/product.dto"
 import {ObjectId} from "mongodb"
+import type {ProductUpdateDTO} from "../types/dto/product.dto"
 
 export async function createProduct(dto: ProductCreateDTO) {
   const db = getDb()
@@ -50,4 +51,31 @@ export async function listProducts(page: number, limit: number) {
   const cursor = db.collection("products").find({}).sort({createdAt:-1}).skip(skip).limit(limit)
   const docs = await cursor.toArray()
   return docs.map(mapProduct)
+}
+
+
+
+
+export async function updateProduct(id: string, patch: ProductUpdateDTO) {
+  const db = getDb()
+  let _id
+  try { _id = new ObjectId(id) } catch { return null }
+  const existing = await db.collection("products").findOne({_id})
+  if (!existing) return null
+  const title = patch.title ?? existing.title
+  const price = patch.price ?? existing.price
+  const discountPercent = patch.discountPercent ?? (existing.discountPercent ?? 0)
+  const discountedPrice = Number((price * (1 - discountPercent / 100)).toFixed(2))
+  await db.collection("products").updateOne({_id},{
+    $set:{title,price,discountPercent,discountedPrice,category: patch.category ?? existing.category,updatedAt:new Date()}
+  })
+  return {id, title, price, discountPercent, discountedPrice, category: patch.category ?? existing.category}
+}
+
+export async function deleteProduct(id: string) {
+  const db = getDb()
+  let _id
+  try { _id = new ObjectId(id) } catch { return false }
+  const res = await db.collection("products").deleteOne({_id})
+  return res.deletedCount === 1
 }
