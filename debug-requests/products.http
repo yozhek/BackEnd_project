@@ -1,0 +1,42 @@
+### Create product (valid)
+POST http://localhost:3000/products
+Content-Type: application/json
+
+{
+  "title": "iPhone",
+  "price": 1099.99,
+  "discountPercent": 10,
+  "category": "electronics"
+}
+
+### Create product (valid)
+POST http://localhost:3000/products
+Content-Type: application/json
+
+{
+"title": "Laptop",
+"price": 2999.99,
+"discountPercent": 25,
+"category": "electronics"
+}
+
+### Create product (valid)
+POST http://localhost:3000/products
+Content-Type: application/json
+
+{
+  "title": "PC",
+  "price": 10000,
+  "category": "electronics"
+}
+
+### Create product (invalid sample)
+POST http://localhost:3000/products
+Content-Type: application/json
+
+{
+  "title": "  ",
+  "price": 100,
+  "discountPercent": 0,
+  "category": ""
+}
