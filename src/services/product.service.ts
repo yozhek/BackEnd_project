@@ -5,25 +5,9 @@ import type {ProductUpdateDTO} from "../types/dto/product.dto"
 
 export async function createProduct(dto: ProductCreateDTO) {
   const db = getDb()
-  const discountedPrice = Number((dto.price * (1 - dto.discountPercent / 100)).toFixed(2))
-  const doc = {
-    title: dto.title,
-    price: dto.price,
-    discountPercent: dto.discountPercent,
-    discountedPrice,
-    category: dto.category,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
+  const doc = buildProductDoc(dto)
   const res = await db.collection("products").insertOne(doc)
-  return {
-    id: res.insertedId.toString(),
-    title: dto.title,
-    price: dto.price,
-    discountPercent: dto.discountPercent,
-    discountedPrice,
-    category: dto.category
-  }
+  return mapProduct({_id: res.insertedId, ...doc})
 }
 
 function mapProduct(doc: any) {
@@ -65,7 +49,7 @@ export async function updateProduct(id: string, patch: ProductUpdateDTO) {
   const title = patch.title ?? existing.title
   const price = patch.price ?? existing.price
   const discountPercent = patch.discountPercent ?? (existing.discountPercent ?? 0)
-  const discountedPrice = Number((price * (1 - discountPercent / 100)).toFixed(2))
+  const discountedPrice = calcDiscountedPrice(price, discountPercent)
   await db.collection("products").updateOne({_id},{
     $set:{title,price,discountPercent,discountedPrice,category: patch.category ?? existing.category,updatedAt:new Date()}
   })
@@ -78,4 +62,20 @@ export async function deleteProduct(id: string) {
   try { _id = new ObjectId(id) } catch { return false }
   const res = await db.collection("products").deleteOne({_id})
   return res.deletedCount === 1
+}
+
+function calcDiscountedPrice(price: number, discountPercent: number) {
+  return Number((price * (1 - discountPercent / 100)).toFixed(2))
+}
+
+function buildProductDoc(dto: ProductCreateDTO) {
+  return {
+    title: dto.title,
+    price: dto.price,
+    discountPercent: dto.discountPercent,
+    discountedPrice: calcDiscountedPrice(dto.price, dto.discountPercent),
+    category: dto.category,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
 }

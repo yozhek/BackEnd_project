@@ -1,6 +1,7 @@
 import express from "express"
 import {errorHandler} from "../middleware/error.middleware"
 import {validateProductCreate,validateProductUpdate} from "../types/dto/product.dto"
+import {validatePagination} from "../types/dto/pagination.dto"
 import {createProduct,getProductById,listProducts,updateProduct,deleteProduct} from "../services/product.service"
 
 const app = express()
@@ -13,10 +14,10 @@ app.get("/health",(_req,res) => {
 
 app.get("/products", async (req,res,next) => {
   try {
-    const page = Number(req.query.page ?? 1)
-    const limit = Number(req.query.limit ?? 10)
-    const items = await listProducts(page,limit)
-    res.status(200).json({items,page,limit})
+    const {value,errors} = validatePagination(req.query)
+    if (errors) return res.status(400).json({errors})
+    const items = await listProducts(value!.page,value!.limit)
+    res.status(200).json({items,page:value!.page,limit:value!.limit})
   } catch (e) { next(e) }
 })
 

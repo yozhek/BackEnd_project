@@ -50,6 +50,12 @@ describe("products API", () => {
     expect(res.body.items.length).toBe(2)
   })
 
+  it("rejects invalid pagination query", async () => {
+    const res = await request(app).get("/products?page=0&limit=200")
+    expect(res.status).toBe(400)
+    expect(res.body.errors).toBeDefined()
+  })
+
   it("gets product by id", async () => {
     const create = await request(app)
       .post("/products")
@@ -87,4 +93,3 @@ describe("products API", () => {
     expect(getRes.status).toBe(404)
   })
 })
-

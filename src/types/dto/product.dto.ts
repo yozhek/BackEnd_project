@@ -5,32 +5,36 @@ export type ProductCreateDTO = {
   category: string
 }
 
+function readNonEmptyString(v: any, field: string, errors: string[]) {
+  const s = typeof v === "string" ? v.trim() : ""
+  if (!s) errors.push(`${field} must be a non-empty string`)
+  return s
+}
+
+function readNumber(v: any, field: string, errors: string[], opts?: {min?: number}) {
+  const n = typeof v === "number" ? v : Number(v)
+  if (!Number.isFinite(n)) errors.push(`${field} must be a number`)
+  else if (opts?.min !== undefined && n < opts.min) errors.push(`${field} must be >= ${opts.min}`)
+  return n
+}
+
+function readDiscount(v: any, present: boolean, errors: string[]) {
+  if (!present) return 0
+  const n = typeof v === "number" ? v : Number(v)
+  if (!Number.isFinite(n)) errors.push("discountPercent must be a number")
+  else if (n <= 0 || n > 100) errors.push("discountPercent must be > 0 and <= 100")
+  return n
+}
+
 export function validateProductCreate(input: any): {value?: ProductCreateDTO, errors?: string[]} {
   const errors: string[] = []
-
-  const title = typeof input?.title === "string" ? input.title.trim() : ""
-  if (!title) errors.push("title must be a non-empty string")
-
-  const priceRaw = input?.price
-  const priceNum = typeof priceRaw === "number" ? priceRaw : Number(priceRaw)
-  if (!Number.isFinite(priceNum)) errors.push("price must be a number")
-  else if (priceNum < 0) errors.push("price must be >= 0")
-
+  const title = readNonEmptyString(input?.title, "title", errors)
+  const price = readNumber(input?.price, "price", errors, {min: 0})
   const hasDiscount = input && Object.prototype.hasOwnProperty.call(input, "discountPercent")
-  let discountNum = 0
-  if (hasDiscount) {
-    const discountRaw = input.discountPercent
-    discountNum = typeof discountRaw === "number" ? discountRaw : Number(discountRaw)
-    if (!Number.isFinite(discountNum)) errors.push("discountPercent must be a number")
-    else if (discountNum <= 0 || discountNum > 100) errors.push("discountPercent must be > 0 and <= 100")
-  }
-
-  const category = typeof input?.category === "string" ? input.category.trim() : ""
-  if (!category) errors.push("category must be a non-empty string")
-
+  const discountPercent = readDiscount(input?.discountPercent, hasDiscount, errors)
+  const category = readNonEmptyString(input?.category, "category", errors)
   if (errors.length) return {errors}
-
-  return {value: {title, price: priceNum, discountPercent: discountNum, category}}
+  return {value: {title, price, discountPercent, category}}
 }
 
 
@@ -45,33 +49,12 @@ export type ProductUpdateDTO = {
 export function validateProductUpdate(input: any): {value?: ProductUpdateDTO, errors?: string[]} {
   const errors: string[] = []
   const out: ProductUpdateDTO = {}
-
-  if (typeof input?.title !== "undefined") {
-    const title = typeof input.title === "string" ? input.title.trim() : ""
-    if (!title) errors.push("title must be a non-empty string")
-    else out.title = title
-  }
-
-  if (typeof input?.price !== "undefined") {
-    const priceNum = typeof input.price === "number" ? input.price : Number(input.price)
-    if (!Number.isFinite(priceNum) || priceNum < 0) errors.push("price must be a number >= 0")
-    else out.price = priceNum
-  }
-
-  if (Object.prototype.hasOwnProperty.call(input || {}, "discountPercent")) {
-    const discountNum = typeof input.discountPercent === "number" ? input.discountPercent : Number(input.discountPercent)
-    if (!Number.isFinite(discountNum) || discountNum <= 0 || discountNum > 100) errors.push("discountPercent must be > 0 and <= 100")
-    else out.discountPercent = discountNum
-  }
-
-  if (typeof input?.category !== "undefined") {
-    const category = typeof input.category === "string" ? input.category.trim() : ""
-    if (!category) errors.push("category must be a non-empty string")
-    else out.category = category
-  }
-
+  if (typeof input?.title !== "undefined") out.title = readNonEmptyString(input.title, "title", errors)
+  if (typeof input?.price !== "undefined") out.price = readNumber(input.price, "price", errors, {min: 0})
+  const hasDiscount = Object.prototype.hasOwnProperty.call(input || {}, "discountPercent")
+  if (hasDiscount) out.discountPercent = readDiscount(input.discountPercent, true, errors)
+  if (typeof input?.category !== "undefined") out.category = readNonEmptyString(input.category, "category", errors)
   if (!Object.keys(out).length) errors.push("no valid fields to update")
-
   if (errors.length) return {errors}
   return {value: out}
 }

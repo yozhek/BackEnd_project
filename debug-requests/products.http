@@ -3,9 +3,9 @@ POST http://localhost:3000/products
 Content-Type: application/json
 
 {
-  "title": "iPhone",
-  "price": 1099.99,
-  "discountPercent": 10,
+  "title": "iPhone16",
+  "price": 1500.99,
+  "discountPercent": 15,
   "category": "electronics"
 }
 
@@ -51,13 +51,13 @@ GET http://localhost:3000/products
 GET http://localhost:3000/products?page=2&limit=2
 
 ### Get product by id (replace with real id)
-GET http://localhost:3000/products/691188ff6a902afa3f69174d
+GET http://localhost:3000/products/69142a9ae6bcc77ad85ac5c4
 
 
 
 
 ### Update product by id (replace id)
-PUT http://localhost:3000/products/691188ff6a902afa3f69174c
+PUT http://localhost:3000/products/69142a9ae6bcc77ad85ac5c4
 Content-Type: application/json
 
 {
@@ -76,4 +76,4 @@ Content-Type: application/json
 }
 
 ### Delete product by id (replace id)
-DELETE http://localhost:3000/products/691187bd6a902afa3f69174c
+DELETE http://localhost:3000/products/69142a9ae6bcc77ad85ac5c4
