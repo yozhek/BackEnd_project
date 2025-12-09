@@ -1,21 +1,10 @@
+import {readNonEmptyString,readNumber,hasProp} from "./validation.helpers"
+
 export type ProductCreateDTO = {
   title: string
   price: number
   discountPercent: number
   category: string
-}
-
-function readNonEmptyString(v: any, field: string, errors: string[]) {
-  const s = typeof v === "string" ? v.trim() : ""
-  if (!s) errors.push(`${field} must be a non-empty string`)
-  return s
-}
-
-function readNumber(v: any, field: string, errors: string[], opts?: {min?: number}) {
-  const n = typeof v === "number" ? v : Number(v)
-  if (!Number.isFinite(n)) errors.push(`${field} must be a number`)
-  else if (opts?.min !== undefined && n < opts.min) errors.push(`${field} must be >= ${opts.min}`)
-  return n
 }
 
 function readDiscount(v: any, present: boolean, errors: string[]) {
@@ -30,7 +19,7 @@ export function validateProductCreate(input: any): {value?: ProductCreateDTO, er
   const errors: string[] = []
   const title = readNonEmptyString(input?.title, "title", errors)
   const price = readNumber(input?.price, "price", errors, {min: 0})
-  const hasDiscount = input && Object.prototype.hasOwnProperty.call(input, "discountPercent")
+  const hasDiscount = hasProp(input, "discountPercent")
   const discountPercent = readDiscount(input?.discountPercent, hasDiscount, errors)
   const category = readNonEmptyString(input?.category, "category", errors)
   if (errors.length) return {errors}
@@ -51,7 +40,7 @@ export function validateProductUpdate(input: any): {value?: ProductUpdateDTO, er
   const out: ProductUpdateDTO = {}
   if (typeof input?.title !== "undefined") out.title = readNonEmptyString(input.title, "title", errors)
   if (typeof input?.price !== "undefined") out.price = readNumber(input.price, "price", errors, {min: 0})
-  const hasDiscount = Object.prototype.hasOwnProperty.call(input || {}, "discountPercent")
+  const hasDiscount = hasProp(input || {}, "discountPercent")
   if (hasDiscount) out.discountPercent = readDiscount(input.discountPercent, true, errors)
   if (typeof input?.category !== "undefined") out.category = readNonEmptyString(input.category, "category", errors)
   if (!Object.keys(out).length) errors.push("no valid fields to update")
