@@ -76,4 +76,4 @@ Content-Type: application/json
 }
 
 ### Delete product by id (replace id)
-DELETE http://localhost:3000/products/69142a9ae6bcc77ad85ac5c4
+DELETE http://localhost:3000/products/6914615143a0f17414da3a5c

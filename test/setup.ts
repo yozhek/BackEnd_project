@@ -11,9 +11,9 @@ beforeAll(async () => {
 afterEach(async () => {
   const db = getDb()
   await db.collection("products").deleteMany({})
+  await db.collection("orders").deleteMany({})
 })
 
 afterAll(async () => {
   await disconnectMongo()
 })
-
