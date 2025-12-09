@@ -1,6 +1,7 @@
 import express from "express"
 import {errorHandler} from "../middleware/error.middleware"
 import {ProductController} from "./controllers/product/product.controller"
+import {swaggerMiddleware} from "../docs/swagger"
 
 const app = express()
 
@@ -9,6 +10,8 @@ app.use(express.json())
 app.get("/health",(_req,res) => {
   res.status(200).json({status:"ok"})
 })
+
+app.use("/docs", ...swaggerMiddleware())
 
 const productController = new ProductController()
 

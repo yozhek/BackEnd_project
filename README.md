@@ -8,6 +8,7 @@
 - Install deps: `npm install`
 - Start API: `npm run start`
 - Run tests: `npm test`
+- API docs (swagger UI): `http://localhost:3000/docs`
 
 ## Requirements + Implementation Notes
 
@@ -32,7 +33,7 @@
 - Integrační testy jsou napsány pomocí Vitest + Supertest:
   - Zdraví služby: [test/health.test.ts](test/health.test.ts)
   - Produkty (CRUD a validace): [test/products.test.ts](test/products.test.ts)
-  - Testovací prostředí (separátní DB): [test/setup.ts](test/setup.ts), konfigurace [vitest.config.ts](vitest.config.ts), `.env.test`.
+  - Testovací prostředí (separátní DB): [test/setup.ts](test/setup.ts), konfigurace [vitest.config.mts](vitest.config.mts), `.env.test`.
 
 7) Code follows DRY principle
 - Sdílené pomocné funkce a mapování pro zamezení duplicit:
@@ -58,10 +59,15 @@
   - `GET /products/:id` – detail
   - `PUT /products/:id` – dílčí aktualizace (přepočet `discountedPrice`)
   - `DELETE /products/:id` – smazání
+- Orders:
+  - `POST /orders` – vytvoření objednávky
+  - `GET /orders?page&limit` – seznam objednávek s stránkováním
+  - `GET /orders/:id` – detail objednávky
+  - `PUT /orders/:id` – aktualizace (např. status)
+  - `DELETE /orders/:id` – smazání
 
 ## Testing
 
 - Test DB: `.env.test` (např. `mongodb://localhost:27018/marketplace_test`)
 - Spuštění: `npm test`
 - Vyčistění mezi testy zajišťuje [test/setup.ts](test/setup.ts)
-
