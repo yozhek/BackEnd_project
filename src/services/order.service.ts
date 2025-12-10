@@ -21,13 +21,17 @@ function mapOrder(doc: any) {
   }
 }
 
-async function ensureProductsAndTotal(items: OrderItemDTO[]) {
-  const db = getDb()
+function parseProductIds(items: OrderItemDTO[]) {
   const ids: ObjectId[] = []
   items.forEach(it => {
     try { ids.push(new ObjectId(it.productId)) }
     catch { throw {status:400, message:"invalid product id"} }
   })
+  return ids
+}
+
+async function loadProductPrices(ids: ObjectId[]) {
+  const db = getDb()
   const products = await db.collection("products").find({_id: {$in: ids}}).toArray()
   if (products.length !== ids.length) throw {status:400, message:"product not found"}
   const priceById = new Map<string, number>()
@@ -36,6 +40,10 @@ async function ensureProductsAndTotal(items: OrderItemDTO[]) {
     if (!Number.isFinite(price)) throw {status:400, message:"invalid product price"}
     priceById.set(p._id.toString(), price)
   })
+  return priceById
+}
+
+function sumItems(items: OrderItemDTO[], priceById: Map<string, number>) {
   let total = 0
   items.forEach(it => {
     const price = priceById.get(it.productId)
@@ -44,6 +52,12 @@ async function ensureProductsAndTotal(items: OrderItemDTO[]) {
   })
   if (!Number.isFinite(total)) throw {status:400, message:"invalid total"}
   return Number(total.toFixed(2))
+}
+
+async function ensureProductsAndTotal(items: OrderItemDTO[]) {
+  const ids = parseProductIds(items)
+  const priceById = await loadProductPrices(ids)
+  return sumItems(items, priceById)
 }
 
 export async function createOrder(dto: OrderCreateDTO) {
