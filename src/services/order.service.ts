@@ -21,13 +21,39 @@ function mapOrder(doc: any) {
   }
 }
 
+async function ensureProductsAndTotal(items: OrderItemDTO[]) {
+  const db = getDb()
+  const ids: ObjectId[] = []
+  items.forEach(it => {
+    try { ids.push(new ObjectId(it.productId)) }
+    catch { throw {status:400, message:"invalid product id"} }
+  })
+  const products = await db.collection("products").find({_id: {$in: ids}}).toArray()
+  if (products.length !== ids.length) throw {status:400, message:"product not found"}
+  const priceById = new Map<string, number>()
+  products.forEach(p => {
+    const price = typeof p.discountedPrice === "number" ? p.discountedPrice : p.price
+    if (!Number.isFinite(price)) throw {status:400, message:"invalid product price"}
+    priceById.set(p._id.toString(), price)
+  })
+  let total = 0
+  items.forEach(it => {
+    const price = priceById.get(it.productId)
+    if (price === undefined || !Number.isFinite(price)) throw {status:400, message:"product not found"}
+    total += price * it.quantity
+  })
+  if (!Number.isFinite(total)) throw {status:400, message:"invalid total"}
+  return Number(total.toFixed(2))
+}
+
 export async function createOrder(dto: OrderCreateDTO) {
   const db = getDb()
   const now = new Date()
+  const totalPrice = await ensureProductsAndTotal(dto.items)
   const doc: OrderDoc = {
     customerName: dto.customerName,
     items: dto.items,
-    totalPrice: dto.totalPrice,
+    totalPrice,
     status: dto.status,
     createdAt: now,
     updatedAt: now
@@ -58,10 +84,11 @@ export async function updateOrder(id: string, patch: OrderUpdateDTO) {
   try { _id = new ObjectId(id) } catch { return null }
   const existing = await db.collection("orders").findOne({_id})
   if (!existing) return null
+  const totalPrice = patch.items ? await ensureProductsAndTotal(patch.items) : existing.totalPrice
   const toSet = {
     customerName: patch.customerName ?? existing.customerName,
     items: patch.items ?? existing.items,
-    totalPrice: patch.totalPrice ?? existing.totalPrice,
+    totalPrice,
     status: patch.status ?? existing.status,
     updatedAt: new Date()
   }

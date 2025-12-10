@@ -4,14 +4,12 @@ export type OrderItemDTO = {productId: string, quantity: number}
 export type OrderCreateDTO = {
   customerName: string
   items: OrderItemDTO[]
-  totalPrice: number
   status: OrderStatus
 }
 
 export type OrderUpdateDTO = {
   customerName?: string
   items?: OrderItemDTO[]
-  totalPrice?: number
   status?: OrderStatus
 }
 
@@ -43,10 +41,9 @@ export function validateOrderCreate(input: any): {value?: OrderCreateDTO, errors
   const errors: string[] = []
   const customerName = readNonEmptyString(input?.customerName, "customerName", errors)
   const items = validateItems(input?.items, errors)
-  const totalPrice = readNumber(input?.totalPrice, "totalPrice", errors, {min: 0})
   const status = validateStatus(input?.status, errors)
   if (errors.length) return {errors}
-  return {value: {customerName, items, totalPrice, status}}
+  return {value: {customerName, items, status}}
 }
 
 export function validateOrderUpdate(input: any): {value?: OrderUpdateDTO, errors?: string[]} {
@@ -54,10 +51,8 @@ export function validateOrderUpdate(input: any): {value?: OrderUpdateDTO, errors
   const out: OrderUpdateDTO = {}
   if (hasProp(input, "customerName")) out.customerName = readNonEmptyString(input.customerName, "customerName", errors)
   if (hasProp(input, "items")) out.items = validateItems(input.items, errors)
-  if (hasProp(input, "totalPrice")) out.totalPrice = readNumber(input.totalPrice, "totalPrice", errors, {min: 0})
   if (hasProp(input, "status")) out.status = validateStatus(input.status, errors)
   if (!Object.keys(out).length) errors.push("no valid fields to update")
   if (errors.length) return {errors}
   return {value: out}
 }
-

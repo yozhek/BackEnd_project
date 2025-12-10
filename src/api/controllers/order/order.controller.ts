@@ -27,7 +27,10 @@ export class OrderController {
       if (errors) return res.status(400).json({errors})
       const created = await createOrder(value!)
       res.status(201).json(created)
-    } catch (e) { next(e) }
+    } catch (e) {
+      if ((e as any)?.status === 400) return res.status(400).json({error:(e as any).message})
+      next(e)
+    }
   }
 
   async update(req: Request,res: Response,next: NextFunction) {
@@ -37,7 +40,10 @@ export class OrderController {
       const updated = await updateOrder(req.params.id,value!)
       if (!updated) return res.status(404).json({error:"Not Found"})
       res.status(200).json(updated)
-    } catch (e) { next(e) }
+    } catch (e) {
+      if ((e as any)?.status === 400) return res.status(400).json({error:(e as any).message})
+      next(e)
+    }
   }
 
   async remove(req: Request,res: Response,next: NextFunction) {
@@ -48,4 +54,3 @@ export class OrderController {
     } catch (e) { next(e) }
   }
 }
-

@@ -213,20 +213,18 @@ export const swaggerSpec = {
       },
       OrderCreate: {
         type: "object",
-        required: ["customerName","items","totalPrice"],
-        properties: {
-          customerName: {type: "string"},
-          items: {type: "array", items: {$ref: "#/components/schemas/OrderItem"}},
-          totalPrice: {type: "number", minimum: 0},
-          status: {type: "string", enum: ["pending","paid","shipped","cancelled"]}
-        }
-      },
+          required: ["customerName","items"],
+          properties: {
+            customerName: {type: "string"},
+            items: {type: "array", items: {$ref: "#/components/schemas/OrderItem"}},
+            status: {type: "string", enum: ["pending","paid","shipped","cancelled"]}
+          }
+        },
       OrderUpdate: {
         type: "object",
         properties: {
           customerName: {type: "string"},
           items: {type: "array", items: {$ref: "#/components/schemas/OrderItem"}},
-          totalPrice: {type: "number", minimum: 0},
           status: {type: "string", enum: ["pending","paid","shipped","cancelled"]}
         }
       }
