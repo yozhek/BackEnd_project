@@ -8,6 +8,25 @@ services:
     volumes:
       - mongo-data:/data/db
 
+  product_service:
+    build:
+      context: product-service
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - MONGO_URL=mongodb://mongo:27017/marketplace
+    depends_on:
+      - mongo
+
+  frontend:
+    build:
+      context: frontend
+    ports:
+      - "5002:4173"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+
 volumes:
   mongo-data:
 
