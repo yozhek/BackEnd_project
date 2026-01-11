@@ -1,0 +1,23 @@
+### Health
+GET http://localhost:3001/health
+
+### Create auction
+POST http://localhost:3001/auctions
+Content-Type: application/json
+
+{
+  "productId": "demo-product",
+  "productTitle": "Demo item",
+  "startPrice": 100,
+  "minIncrement": 5,
+  "endsAt": "2099-01-01T00:00:00.000Z"
+}
+
+### Place bid
+POST http://localhost:3001/auctions/{{auctionId}}/bids
+Content-Type: application/json
+
+{
+  "bidder": "alice",
+  "amount": 120
+}
