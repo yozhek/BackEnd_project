@@ -87,7 +87,7 @@ describe("products API", () => {
   it("deletes product", async () => {
     const create = await request(app)
       .post("/products")
-      .send({title:"Phone", price:500, discountPercent:10, category:"electronics"})
+      .send({title:"Phone", price:500, discountPercent:10, category:"electronics", description:"To delete"})
       .set("Content-Type","application/json")
     const id = create.body.id
     const res = await request(app).delete(`/products/${id}`)

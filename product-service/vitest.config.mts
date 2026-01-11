@@ -4,7 +4,6 @@ export default defineConfig({
   test: {
     environment: "node",
     setupFiles: ["test/setup.ts"],
-    coverage: {enabled: false}
+    coverage: {enabled: false, provider: "v8"}
   }
 })
-

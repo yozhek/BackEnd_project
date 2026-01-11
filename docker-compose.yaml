@@ -26,6 +26,16 @@ services:
       - "5002:4173"
     environment:
       - VITE_API_URL=http://localhost:3000
+  bidding_service:
+    build:
+      context: bidding-service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - MONGO_URL=mongodb://mongo:27017/marketplace
+    depends_on:
+      - mongo
 
 volumes:
   mongo-data:
