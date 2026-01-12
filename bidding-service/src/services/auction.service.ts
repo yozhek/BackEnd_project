@@ -79,7 +79,9 @@ export async function placeBid(id: string, bid: AuctionBidDTO) {
   if (bid.amount < minAllowed) return {ok:false, reason:"low_bid", minAllowed} as const
   const updated = await saveBid(_id, doc, bid)
   if (!updated) return {ok:false, reason:"conflict"} as const
-  return {ok:true, auction: mapAuction(updated)} as const
+  const auction = mapAuction(updated)
+  await notifyGateway("bid", {auctionId: auction.id, amount: bid.amount, bidder: bid.bidder})
+  return {ok:true, auction} as const
 }
 
 function buildDoc(dto: AuctionCreateDTO): AuctionDoc {
@@ -151,4 +153,18 @@ async function saveBid(_id: ObjectId, doc: AuctionDoc, bid: AuctionBidDTO) {
   )
   if (res.modifiedCount !== 1) return null
   return loadAuction(_id)
+}
+
+async function notifyGateway(type: string, payload: any) {
+  const url = process.env.GATEWAY_URL
+  if (!url) return
+  try {
+    await fetch(url, {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({type, payload})
+    })
+  } catch {
+    // best-effort, do not block bidding flow
+  }
 }

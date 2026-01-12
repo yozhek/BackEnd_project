@@ -14,10 +14,10 @@ Content-Type: application/json
 }
 
 ### Place bid
-POST http://localhost:3001/auctions/{{auctionId}}/bids
+POST http://localhost:3001/auctions/69643b66bf51f5d1fd818eeb/bids
 Content-Type: application/json
 
 {
-  "bidder": "alice",
-  "amount": 120
+  "bidder": "leo",
+  "amount": 146
 }
