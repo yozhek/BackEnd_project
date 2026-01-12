@@ -1,0 +1,15 @@
+### Health
+GET http://localhost:3002/health
+
+### Send event to broadcast
+POST http://localhost:3002/events
+Content-Type: application/json
+
+{
+  "type": "bid",
+  "payload": {
+    "auctionId": "demo",
+    "amount": 123,
+    "bidder": "tester"
+  }
+}
