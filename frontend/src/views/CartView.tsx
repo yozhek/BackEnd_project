@@ -1,13 +1,21 @@
 import {useApp} from "../state/appStore"
 
 export function CartView() {
-  const {cart, removeFromCart, updateQuantity, checkout, cartTotal} = useApp()
+  const {cart, removeFromCart, updateQuantity, checkout, cartTotal, isBuyer, username, email} = useApp()
+  if (!isBuyer) {
+    return (
+      <section className="panel">
+        <h3>Only buyers can access the cart.</h3>
+        <p className="muted">Login as buyer to add items and place orders.</p>
+      </section>
+    )
+  }
   return (
     <section className="panel">
       <div className="panel-head">
         <div>
           <h2>Cart</h2>
-          <p className="muted">Items you plan to order.</p>
+          <p className="muted">Items you plan to order. Signed in as {username || "Buyer"} {email ? `(${email})` : ""}</p>
         </div>
       </div>
       {!cart.length && <p className="muted">Your cart is empty</p>}

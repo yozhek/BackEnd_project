@@ -2,6 +2,7 @@ import express from "express"
 import {errorHandler} from "../middleware/error.middleware"
 import {AuctionController} from "./controllers/auction.controller"
 import {swaggerMiddleware} from "../docs/swagger"
+import {requireAuth} from "../middleware/auth.middleware"
 
 const app = express()
 
@@ -27,10 +28,10 @@ const auctionController = new AuctionController()
 
 app.get("/auctions", auctionController.list.bind(auctionController))
 app.get("/auctions/:id", auctionController.getById.bind(auctionController))
-app.post("/auctions", auctionController.create.bind(auctionController))
-app.post("/auctions/:id/bids", auctionController.bid.bind(auctionController))
-app.put("/auctions/:id/status", auctionController.updateStatus.bind(auctionController))
-app.delete("/auctions/:id", auctionController.remove.bind(auctionController))
+app.post("/auctions", requireAuth(["seller"]), auctionController.create.bind(auctionController))
+app.post("/auctions/:id/bids", requireAuth(["buyer"]), auctionController.bid.bind(auctionController))
+app.put("/auctions/:id/status", requireAuth(["seller"]), auctionController.updateStatus.bind(auctionController))
+app.delete("/auctions/:id", requireAuth(["seller"]), auctionController.remove.bind(auctionController))
 
 app.use((_req,res) => {
   res.status(404).json({error:"Not Found"})

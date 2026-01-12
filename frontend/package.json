@@ -8,7 +8,9 @@
         "preview": "vite preview --host --port 4173"
     },
     "dependencies": {
+        "@react-keycloak/web": "^3.4.0",
         "@types/react-router-dom": "^5.3.3",
+        "keycloak-js": "^23.0.7",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
         "react-router-dom": "^7.10.1"

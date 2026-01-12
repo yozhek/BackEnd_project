@@ -2,14 +2,35 @@
 import {useApp} from "../state/appStore"
 
 export function BuyerProfileView() {
-  const {orders, resolveProductInfo, deleteOrder} = useApp()
+  const {orders, resolveProductInfo, deleteOrder, isBuyer, username, email} = useApp()
   const [openOrderId,setOpenOrderId] = useState<string|null>(null)
+
+  if (!isBuyer) {
+    return (
+      <section className="panel">
+        <h3>Only buyers can view this page.</h3>
+        <p className="muted">Login as buyer to see your orders.</p>
+      </section>
+    )
+  }
 
   return (
     <section className="panel form-panel">
       <div>
         <h2>Buyer profile</h2>
-        <p className="muted">Order history</p>
+        <div className="profile-card">
+          <div className="profile-row">
+            <span className="profile-label">Username:</span>
+            <span className="profile-value">{username || "Buyer"}</span>
+          </div>
+          {email && (
+            <div className="profile-row">
+              <span className="profile-label">Email:</span>
+              <span className="profile-value">{email}</span>
+            </div>
+          )}
+        </div>
+        <p className="muted" style={{marginTop:"10px"}}>Order history</p>
       </div>
       <div className="orders">
         <ul className="list">

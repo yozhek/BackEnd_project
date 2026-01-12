@@ -1,15 +1,36 @@
 import {useApp} from "../state/appStore"
 
 export function SellerProfileView() {
-  const {products, openSellerModal} = useApp()
+  const {products, openSellerModal, isSeller, username, email, userId} = useApp()
+  if (!isSeller) {
+    return (
+      <section className="panel">
+        <h3>Only sellers can view this page.</h3>
+        <p className="muted">Login as seller to manage your listings.</p>
+      </section>
+    )
+  }
+  const mine = userId ? products.filter(p => p.ownerId === userId) : []
   return (
     <section className="panel form-panel">
       <div>
         <h2>Seller profile</h2>
-        <p className="muted">Your listings</p>
+        <div className="profile-card">
+          <div className="profile-row">
+            <span className="profile-label">Username:</span>
+            <span className="profile-value">{username || "Seller"}</span>
+          </div>
+          {email && (
+            <div className="profile-row">
+              <span className="profile-label">Email:</span>
+              <span className="profile-value">{email}</span>
+            </div>
+          )}
+        </div>
+        <p className="muted" style={{marginTop:"10px"}}>Your listings</p>
       </div>
       <div className="grid">
-        {products.map(p => (
+        {mine.map(p => (
           <article key={p.id} className="card" onClick={() => openSellerModal(p)}>
             <div className="card-title">
               <div className="title-block">
@@ -32,7 +53,7 @@ export function SellerProfileView() {
             </div>
           </article>
         ))}
-        {!products.length && <p className="muted">No products yet</p>}
+        {!mine.length && <p className="muted">No products yet</p>}
       </div>
     </section>
   )

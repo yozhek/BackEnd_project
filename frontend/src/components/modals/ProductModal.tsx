@@ -1,7 +1,7 @@
 import {useApp} from "../../state/appStore"
 
 export function ProductModal() {
-  const {selectedProduct, selectedQty, setSelectedQty, addToCart, closeProductModal} = useApp()
+  const {selectedProduct, selectedQty, setSelectedQty, addToCart, closeProductModal, isSeller, isBuyer, isAuth} = useApp()
   if (!selectedProduct) return null
   return (
     <div className="modal" onClick={closeProductModal}>
@@ -26,13 +26,17 @@ export function ProductModal() {
                   </div>
                 )}
               </div>
-              <div className="row space actions-bottom">
-                <label className="qty">
-                  Qty
-                  <input type="number" min="1" value={selectedQty} onChange={e => setSelectedQty(Number(e.target.value) || 1)} />
-                </label>
-                <button onClick={() => {addToCart(selectedProduct, selectedQty); closeProductModal()}}>Add to cart</button>
-              </div>
+              {isBuyer && (
+                <div className="row space actions-bottom">
+                  <label className="qty">
+                    Qty
+                    <input type="number" min="1" value={selectedQty} onChange={e => setSelectedQty(Number(e.target.value) || 1)} />
+                  </label>
+                  <button onClick={() => {addToCart(selectedProduct, selectedQty); closeProductModal()}}>Add to cart</button>
+                </div>
+              )}
+              {!isAuth && <p className="muted">Login as buyer to add items to cart</p>}
+              {isSeller && <p className="muted">Sellers cannot add items to cart</p>}
             </div>
           </div>
         </div>

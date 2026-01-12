@@ -3,6 +3,7 @@ import {errorHandler} from "../middleware/error.middleware"
 import {ProductController} from "./controllers/product/product.controller"
 import {OrderController} from "./controllers/order/order.controller"
 import {swaggerMiddleware} from "../docs/swagger"
+import {requireAuth} from "../middleware/auth.middleware"
 
 const app = express()
 
@@ -30,15 +31,15 @@ const orderController = new OrderController()
 
 app.get("/products", productController.list.bind(productController))
 app.get("/products/:id", productController.getById.bind(productController))
-app.post("/products", productController.create.bind(productController))
-app.put("/products/:id", productController.update.bind(productController))
-app.delete("/products/:id", productController.remove.bind(productController))
+app.post("/products", requireAuth(["seller"]), productController.create.bind(productController))
+app.put("/products/:id", requireAuth(["seller"]), productController.update.bind(productController))
+app.delete("/products/:id", requireAuth(["seller"]), productController.remove.bind(productController))
 
-app.get("/orders", orderController.list.bind(orderController))
-app.get("/orders/:id", orderController.getById.bind(orderController))
-app.post("/orders", orderController.create.bind(orderController))
-app.put("/orders/:id", orderController.update.bind(orderController))
-app.delete("/orders/:id", orderController.remove.bind(orderController))
+app.get("/orders", requireAuth(["buyer"]), orderController.list.bind(orderController))
+app.get("/orders/:id", requireAuth(["buyer"]), orderController.getById.bind(orderController))
+app.post("/orders", requireAuth(["buyer"]), orderController.create.bind(orderController))
+app.put("/orders/:id", requireAuth(["buyer"]), orderController.update.bind(orderController))
+app.delete("/orders/:id", requireAuth(["buyer"]), orderController.remove.bind(orderController))
 
 //404 propadnuti
 app.use((_req,res) => {

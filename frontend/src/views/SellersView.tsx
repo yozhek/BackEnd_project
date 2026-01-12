@@ -2,7 +2,16 @@ import {ChangeEvent} from "react"
 import {useApp} from "../state/appStore"
 
 export function SellersView() {
-  const {productForm, setProductForm, createProduct} = useApp()
+  const {productForm, setProductForm, createProduct, isSeller, isAuth, username, email} = useApp()
+
+  if (!isSeller) {
+    return (
+      <section className="panel">
+        <h3>Only sellers can access this page.</h3>
+        <p className="muted">Login as seller to create products.</p>
+      </section>
+    )
+  }
 
   async function onFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -15,6 +24,7 @@ export function SellersView() {
     <section className="panel form-panel">
       <div>
         <h2>Seller console</h2>
+        <p className="muted">Signed in as {username || "Seller"} {email ? `(${email})` : ""}</p>
         <p className="muted">Create a product with optional discount and image.</p>
       </div>
       <form className="form-grid" onSubmit={createProduct}>
@@ -44,7 +54,7 @@ export function SellersView() {
           {productForm.imageBase64 && <img src={productForm.imageBase64} className="preview" alt="preview" />}
         </label>
         <div className="actions">
-          <button type="submit">Publish product</button>
+          <button type="submit" disabled={!isAuth}>Publish product</button>
         </div>
       </form>
     </section>

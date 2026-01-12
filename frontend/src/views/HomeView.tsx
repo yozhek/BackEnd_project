@@ -1,7 +1,7 @@
 import {useApp} from "../state/appStore"
 
 export function HomeView() {
-  const {products, search, setSearch, openProductModal} = useApp()
+  const {products, search, setSearch, openProductModal, isSeller, isBuyer, isAuth} = useApp()
   const filtered = products.filter(p =>
     p.title.toLowerCase().includes(search.toLowerCase()) ||
     p.category.toLowerCase().includes(search.toLowerCase()) ||
@@ -38,6 +38,7 @@ export function HomeView() {
                 )}
               </div>
             </div>
+            {(!isAuth || isSeller) && <p className="muted small-note">Login as buyer to add items to cart</p>}
           </article>
         ))}
         {!filtered.length && <p className="muted">No products found</p>}

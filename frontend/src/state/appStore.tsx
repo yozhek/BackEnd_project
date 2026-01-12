@@ -18,6 +18,13 @@ type AppState = {
   selectedQty: number
   sellerModal: SellerModalState|null
   productForm: ProductForm
+  isAuth: boolean
+  roles: string[]
+  isBuyer: boolean
+  isSeller: boolean
+  userId: string
+  username: string
+  email: string
   status?: string
   error?: string
 }
@@ -48,7 +55,7 @@ type AppContextType = AppState & AppActions & {load: () => Promise<void>}
 
 const AppContext = createContext<AppContextType | null>(null)
 
-export function AppProvider({children}: {children: ReactNode}) {
+export function AppProvider({children, auth}: {children: ReactNode, auth?: {isAuth: boolean, roles: string[], userId?: string, username?: string, email?: string}}) {
   const [products,setProducts] = useState<Product[]>([])
   const [orders,setOrders] = useState<Order[]>([])
   const [search,setSearch] = useState("")
@@ -61,29 +68,43 @@ export function AppProvider({children}: {children: ReactNode}) {
   const [sellerModal,setSellerModal] = useState<SellerModalState|null>(null)
   const [status,setStatus] = useState<string|undefined>()
   const [error,setError] = useState<string|undefined>()
+  const isAuth = auth?.isAuth ?? false
+  const roles = auth?.roles ?? []
+  const isBuyer = roles.includes("buyer")
+  const isSeller = roles.includes("seller")
+  const userId = auth?.userId || ""
+  const username = auth?.username || ""
+  const email = auth?.email || ""
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [userId, isAuth, isSeller, isBuyer])
 
   useEffect(() => {
-    const saved = localStorage.getItem("cart")
-    if (saved) { try { setCart(JSON.parse(saved)) } catch {} }
+    const cartKey = userId ? `cart_${userId}` : "cart_guest"
+    const saved = localStorage.getItem(cartKey)
+    if (saved) { try { setCart(JSON.parse(saved)) } catch {} } else { setCart([]) }
     const bp = localStorage.getItem("buyerProfile")
     if (bp) { try { setBuyerProfile(JSON.parse(bp)) } catch {} }
     const sp = localStorage.getItem("sellerProfile")
     if (sp) { try { setSellerProfile(JSON.parse(sp)) } catch {} }
-  }, [])
+  }, [userId])
 
-  useEffect(() => { localStorage.setItem("cart", JSON.stringify(cart)) }, [cart])
+  useEffect(() => {
+    const cartKey = userId ? `cart_${userId}` : "cart_guest"
+    localStorage.setItem(cartKey, JSON.stringify(cart))
+  }, [cart, userId])
   useEffect(() => { localStorage.setItem("buyerProfile", JSON.stringify(buyerProfile)) }, [buyerProfile])
   useEffect(() => { localStorage.setItem("sellerProfile", JSON.stringify(sellerProfile)) }, [sellerProfile])
 
   async function load() {
     setError(undefined)
     try {
-      const [p,o] = await Promise.all([api.listProducts(), api.listOrders()])
+      const p = await api.listProducts()
       setProducts(p.items || [])
-      setOrders(o.items || [])
     } catch (e:any) { setError(e.message) }
+    try {
+      const o = await api.listOrders(true)
+      setOrders(o.items || [])
+    } catch {}
   }
 
   function parseNumber(value: string) {
@@ -153,6 +174,7 @@ export function AppProvider({children}: {children: ReactNode}) {
   }
 
   function addToCart(product: Product, qty=1) {
+    if (!isBuyer) return
     setCart(prev => {
       const existing = prev.find(p => p.product.id === product.id)
       if (existing) return prev.map(p => p.product.id === product.id ? {...p, quantity: p.quantity + qty} : p)
@@ -178,6 +200,7 @@ export function AppProvider({children}: {children: ReactNode}) {
   async function checkout() {
     setError(undefined)
     setStatus(undefined)
+    if (!isBuyer) { setError("Login as buyer to place orders"); return }
     if (!cart.length) { setError("Cart is empty"); return }
     const items = cart.map(it => ({productId: it.product.id, quantity: it.quantity}))
     await api.createOrder({items, status:"pending"})
@@ -212,7 +235,7 @@ export function AppProvider({children}: {children: ReactNode}) {
   function closeSellerModal() { setSellerModal(null) }
 
   const value: AppContextType = {
-    products, orders, cart, buyerProfile, sellerProfile, search, selectedProduct, selectedQty, sellerModal, productForm, status, error,
+    products, orders, cart, buyerProfile, sellerProfile, search, selectedProduct, selectedQty, sellerModal, productForm, status, error, isAuth, roles, isBuyer, isSeller, userId, username, email,
     setSearch,
     openProductModal,
     closeProductModal,

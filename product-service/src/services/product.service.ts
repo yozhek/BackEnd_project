@@ -3,10 +3,25 @@ import type {ProductCreateDTO} from "../types/dto/product.dto"
 import {ObjectId} from "mongodb"
 import type {ProductUpdateDTO} from "../types/dto/product.dto"
 
-export async function createProduct(dto: ProductCreateDTO) {
+type ProductDoc = {
+  _id?: ObjectId
+  title: string
+  price: number
+  discountPercent: number
+  discountedPrice: number
+  category: string
+  description: string
+  imageBase64?: string
+  ownerId?: string
+  ownerName?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export async function createProduct(dto: ProductCreateDTO, owner?: {id?: string, name?: string}) {
   const db = getDb()
-  const doc = buildProductDoc(dto)
-  const res = await db.collection("products").insertOne(doc)
+  const doc = buildProductDoc(dto, owner)
+  const res = await db.collection<ProductDoc>("products").insertOne(doc)
   return mapProduct({_id: res.insertedId, ...doc})
 }
 
@@ -19,7 +34,9 @@ function mapProduct(doc: any) {
     discountedPrice: doc.discountedPrice ?? doc.price,
     category: doc.category,
     description: doc.description ?? "",
-    imageBase64: doc.imageBase64
+    imageBase64: doc.imageBase64,
+    ownerId: doc.ownerId,
+    ownerName: doc.ownerName
   }
 }
 
@@ -27,14 +44,15 @@ export async function getProductById(id: string) {
   const db = getDb()
   let _id
   try { _id = new ObjectId(id) } catch { return null }
-  const doc = await db.collection("products").findOne({_id})
+  const doc = await db.collection<ProductDoc>("products").findOne({_id})
   return doc ? mapProduct(doc) : null
 }
 
-export async function listProducts(page: number, limit: number) {
+export async function listProducts(page: number, limit: number, ownerId?: string) {
   const db = getDb()
   const skip = Math.max(0, (page - 1) * limit)
-  const cursor = db.collection("products").find({}).sort({createdAt:-1}).skip(skip).limit(limit)
+  const filter = ownerId ? {ownerId} : {}
+  const cursor = db.collection<ProductDoc>("products").find(filter).sort({createdAt:-1}).skip(skip).limit(limit)
   const docs = await cursor.toArray()
   return docs.map(mapProduct)
 }
@@ -42,12 +60,13 @@ export async function listProducts(page: number, limit: number) {
 
 
 
-export async function updateProduct(id: string, patch: ProductUpdateDTO) {
+export async function updateProduct(id: string, patch: ProductUpdateDTO, userId?: string) {
   const db = getDb()
   let _id
   try { _id = new ObjectId(id) } catch { return null }
-  const existing = await db.collection("products").findOne({_id})
+  const existing = await db.collection<ProductDoc>("products").findOne({_id})
   if (!existing) return null
+  if (existing.ownerId && userId && existing.ownerId !== userId) return {forbidden:true} as any
   const title = patch.title ?? existing.title
   const price = patch.price ?? existing.price
   const discountPercent = patch.discountPercent ?? (existing.discountPercent ?? 0)
@@ -74,14 +93,20 @@ export async function updateProduct(id: string, patch: ProductUpdateDTO) {
     discountedPrice,
     category: patch.category ?? existing.category,
     description,
-    imageBase64
+    imageBase64,
+    ownerId: existing.ownerId,
+    ownerName: existing.ownerName
   }
 }
 
-export async function deleteProduct(id: string) {
+export async function deleteProduct(id: string, userId?: string) {
   const db = getDb()
   let _id
   try { _id = new ObjectId(id) } catch { return false }
+  if (userId) {
+    const existing = await db.collection<ProductDoc>("products").findOne({_id})
+    if (!existing || (existing.ownerId && existing.ownerId !== userId)) return false
+  }
   const res = await db.collection("products").deleteOne({_id})
   return res.deletedCount === 1
 }
@@ -90,7 +115,7 @@ function calcDiscountedPrice(price: number, discountPercent: number) {
   return Number((price * (1 - discountPercent / 100)).toFixed(2))
 }
 
-function buildProductDoc(dto: ProductCreateDTO) {
+function buildProductDoc(dto: ProductCreateDTO, owner?: {id?: string, name?: string}): ProductDoc {
   return {
     title: dto.title,
     price: dto.price,
@@ -99,6 +124,8 @@ function buildProductDoc(dto: ProductCreateDTO) {
     category: dto.category,
     description: dto.description,
     imageBase64: dto.imageBase64,
+    ownerId: owner?.id,
+    ownerName: owner?.name,
     createdAt: new Date(),
     updatedAt: new Date()
   }

@@ -7,6 +7,8 @@ export type Product = {
   category: string
   description: string
   imageBase64?: string
+  ownerId?: string
+  ownerName?: string
 }
 
 export type OrderItem = {productId: string, quantity: number, productTitle?: string, productPrice?: number}
@@ -15,4 +17,7 @@ export type Order = {
   items: OrderItem[]
   totalPrice: number
   status: string
+  buyerId?: string
+  buyerName?: string
+  buyerEmail?: string
 }

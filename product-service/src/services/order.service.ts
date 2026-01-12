@@ -6,6 +6,9 @@ type OrderDoc = {
   items: Array<OrderItemDTO & {productTitle?: string, productPrice?: number}>
   totalPrice: number
   status: OrderStatus
+  buyerId?: string
+  buyerName?: string
+  buyerEmail?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -20,7 +23,10 @@ function mapOrder(doc: any) {
       productPrice: it.productPrice
     })),
     totalPrice: doc.totalPrice,
-    status: doc.status
+    status: doc.status,
+    buyerId: doc.buyerId,
+    buyerName: doc.buyerName,
+    buyerEmail: doc.buyerEmail
   }
 }
 
@@ -69,7 +75,7 @@ async function ensureProductsAndTotal(items: OrderItemDTO[]) {
   return {totalPrice, items: itemsWithTitles}
 }
 
-export async function createOrder(dto: OrderCreateDTO) {
+export async function createOrder(dto: OrderCreateDTO, buyer?: {id?: string, name?: string, email?: string}) {
   const db = getDb()
   const now = new Date()
   const {totalPrice, items} = await ensureProductsAndTotal(dto.items)
@@ -77,50 +83,64 @@ export async function createOrder(dto: OrderCreateDTO) {
     items,
     totalPrice,
     status: dto.status,
+    buyerId: buyer?.id,
+    buyerName: buyer?.name,
+    buyerEmail: buyer?.email,
     createdAt: now,
     updatedAt: now
   }
-  const res = await db.collection("orders").insertOne(doc)
+  const res = await db.collection<OrderDoc>("orders").insertOne(doc)
   return mapOrder({_id: res.insertedId, ...doc})
 }
 
-export async function getOrderById(id: string) {
+export async function getOrderById(id: string, buyerId?: string) {
   const db = getDb()
   let _id
   try { _id = new ObjectId(id) } catch { return null }
-  const doc = await db.collection("orders").findOne({_id})
+  const filter: any = {_id}
+  if (buyerId) filter.buyerId = buyerId
+  const doc = await db.collection<OrderDoc>("orders").findOne(filter)
   return doc ? mapOrder(doc) : null
 }
 
-export async function listOrders(page: number, limit: number) {
+export async function listOrders(page: number, limit: number, buyerId?: string) {
   const db = getDb()
   const skip = Math.max(0, (page - 1) * limit)
-  const cursor = db.collection("orders").find({}).sort({createdAt:-1}).skip(skip).limit(limit)
+  const filter = buyerId ? {buyerId} : {}
+  const cursor = db.collection<OrderDoc>("orders").find(filter).sort({createdAt:-1}).skip(skip).limit(limit)
   const docs = await cursor.toArray()
   return docs.map(mapOrder)
 }
 
-export async function updateOrder(id: string, patch: OrderUpdateDTO) {
+export async function updateOrder(id: string, patch: OrderUpdateDTO, buyerId?: string) {
   const db = getDb()
   let _id
   try { _id = new ObjectId(id) } catch { return null }
-  const existing = await db.collection("orders").findOne({_id})
+  const existing = await db.collection<OrderDoc>("orders").findOne({_id})
   if (!existing) return null
+  if (buyerId && existing.buyerId && existing.buyerId !== buyerId) return {forbidden:true} as any
   const enriched = patch.items ? await ensureProductsAndTotal(patch.items) : null
   const toSet = {
     items: enriched ? enriched.items : existing.items,
     totalPrice: enriched ? enriched.totalPrice : existing.totalPrice,
     status: patch.status ?? existing.status,
+    buyerId: existing.buyerId,
+    buyerName: existing.buyerName,
+    buyerEmail: existing.buyerEmail,
     updatedAt: new Date()
   }
   await db.collection("orders").updateOne({_id}, {$set: toSet})
   return mapOrder({_id, ...toSet})
 }
 
-export async function deleteOrder(id: string) {
+export async function deleteOrder(id: string, buyerId?: string) {
   const db = getDb()
   let _id
   try { _id = new ObjectId(id) } catch { return false }
+  if (buyerId) {
+    const existing = await db.collection<OrderDoc>("orders").findOne({_id})
+    if (!existing || (existing.buyerId && existing.buyerId !== buyerId)) return false
+  }
   const res = await db.collection("orders").deleteOne({_id})
   return res.deletedCount === 1
 }

@@ -10,6 +10,7 @@ import {ProductModal} from "./components/modals/ProductModal"
 import {SellerModal} from "./components/modals/SellerModal"
 import {AppProvider, useApp} from "./state/appStore"
 import {Routes,Route, useLocation} from "react-router-dom"
+import {useAuth} from "./state/authStore"
 import {useEffect} from "react"
 
 function Content() {
@@ -44,8 +45,11 @@ function Content() {
 }
 
 function App() {
+  const {isAuth, roles} = useAuth()
+  const {userId, username, email} = useAuth()
+
   return (
-    <AppProvider>
+    <AppProvider auth={{isAuth, roles, userId, username, email}}>
       <Content />
     </AppProvider>
   )
