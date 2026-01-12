@@ -1,0 +1,13 @@
+### Health
+GET http://localhost:3003/health
+
+### Register user
+POST http://localhost:3003/register
+Content-Type: application/json
+
+{
+  "username": "demo",
+  "password": "demo",
+  "email": "demo@example.com",
+  "role": "buyer"
+}

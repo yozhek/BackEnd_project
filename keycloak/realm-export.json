@@ -1,0 +1,63 @@
+{
+  "realm": "marketplace",
+  "enabled": true,
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": true,
+  "roles": {
+    "realm": [
+      {"name": "buyer", "composite": false, "clientRole": false, "containerId": "marketplace"},
+      {"name": "seller", "composite": false, "clientRole": false, "containerId": "marketplace"}
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "frontend",
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:5002/*"],
+      "webOrigins": ["*"]
+    },
+    {
+      "clientId": "product-service",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    },
+    {
+      "clientId": "bidding-service",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    },
+    {
+      "clientId": "gateway-service",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    }
+  ],
+  "users": [
+    {
+      "username": "buyer1",
+      "enabled": true,
+      "email": "buyer1@example.com",
+      "credentials": [{"type": "password", "value": "buyer1", "temporary": false}],
+      "realmRoles": ["buyer"]
+    },
+    {
+      "username": "seller1",
+      "enabled": true,
+      "email": "seller1@example.com",
+      "credentials": [{"type": "password", "value": "seller1", "temporary": false}],
+      "realmRoles": ["seller"]
+    }
+  ]
+}
