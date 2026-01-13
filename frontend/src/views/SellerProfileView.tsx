@@ -1,7 +1,7 @@
 import {useApp} from "../state/appStore"
 
 export function SellerProfileView() {
-  const {products, openSellerModal, isSeller, username, email, userId} = useApp()
+  const {products, auctions, openSellerModal, openAuctionModal, isSeller, username, email, userId, deleteAuction, closeAuction} = useApp()
   if (!isSeller) {
     return (
       <section className="panel">
@@ -11,6 +11,8 @@ export function SellerProfileView() {
     )
   }
   const mine = userId ? products.filter(p => p.ownerId === userId) : []
+  const nonAuctionProducts = mine.filter(p => !p.isAuction)
+  const myAuctions = userId ? auctions.filter(a => a.sellerId === userId && a.status !== "closed" && a.status !== "cancelled") : []
   return (
     <section className="panel form-panel">
       <div>
@@ -30,7 +32,7 @@ export function SellerProfileView() {
         <p className="muted" style={{marginTop:"10px"}}>Your listings</p>
       </div>
       <div className="grid">
-        {mine.map(p => (
+        {nonAuctionProducts.map(p => (
           <article key={p.id} className="card" onClick={() => openSellerModal(p)}>
             <div className="card-title">
               <div className="title-block">
@@ -54,6 +56,31 @@ export function SellerProfileView() {
           </article>
         ))}
         {!mine.length && <p className="muted">No products yet</p>}
+      </div>
+      <p className="muted" style={{marginTop:"16px"}}>Your auctions</p>
+      <div className="grid">
+        {myAuctions.map(a => (
+          <article key={a.id} className="card" onClick={() => openAuctionModal(a)}>
+            <div className="card-title">
+              <div className="title-block">
+                {a.imageBase64 ? <img src={a.imageBase64} className="thumb" alt={a.productTitle} /> : <div className="thumb placeholder">No image</div>}
+                <div>
+                  <h3>{a.productTitle}</h3>
+                  {a.category && <p className="badge">{a.category}</p>}
+                  <p className="muted small">Status: <span className={`pill ${a.status === "awaiting_payment" ? "warn" : ""}`}>{a.status}</span></p>
+                  <p className="muted small">Ends: {new Date(a.endsAt).toLocaleString()}</p>
+                  {a.status === "awaiting_payment" && a.paymentExpiresAt && (
+                    <p className="muted small">Payment expires: {new Date(a.paymentExpiresAt).toLocaleString()}</p>
+                  )}
+                </div>
+              </div>
+              <div className="price">
+                <span className="now">${(a.currentAmount ?? a.startPrice).toFixed(2)}</span>
+              </div>
+            </div>
+          </article>
+        ))}
+        {!myAuctions.length && <p className="muted">No auctions yet</p>}
       </div>
     </section>
   )

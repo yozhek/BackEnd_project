@@ -1,7 +1,22 @@
+import {useEffect,useState} from "react"
 import {useApp} from "../state/appStore"
 
 export function CartView() {
   const {cart, removeFromCart, updateQuantity, checkout, cartTotal, isBuyer, username, email} = useApp()
+  const [now,setNow] = useState(Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  function formatCountdown(ms: number) {
+    const total = Math.max(0, Math.floor(ms / 1000))
+    const hours = Math.floor(total / 3600)
+    const minutes = Math.floor((total % 3600) / 60)
+    const seconds = total % 60
+    return `${hours}h ${minutes}m ${seconds}s`
+  }
+
   if (!isBuyer) {
     return (
       <section className="panel">
@@ -29,13 +44,22 @@ export function CartView() {
                 <div>
                   <strong>{item.product.title}</strong>
                   <p className="muted">{item.product.category}</p>
+                  {item.product.isAuction && item.expiresAt && (
+                    <p className="muted small">Awaiting payment • Expires in {formatCountdown(new Date(item.expiresAt).getTime() - now)}</p>
+                  )}
                 </div>
               </div>
               <button type="button" onClick={() => removeFromCart(item.product.id)}>Remove</button>
             </div>
             <div className="row space">
               <span>${item.product.discountedPrice.toFixed(2)}</span>
-              <input type="number" min="1" value={item.quantity} onChange={e => updateQuantity(item.product.id, e.target.value)} />
+              <input
+                type="number"
+                min="1"
+                value={item.quantity}
+                onChange={e => updateQuantity(item.product.id, e.target.value)}
+                disabled={item.product.isAuction}
+              />
             </div>
           </li>
         ))}

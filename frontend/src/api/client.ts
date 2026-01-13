@@ -1,5 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000"
+const BIDDING_URL = import.meta.env.VITE_BIDDING_URL || "http://localhost:3001"
 const AUTH_URL = import.meta.env.VITE_AUTH_URL || "http://localhost:3003"
+const GATEWAY_WS = import.meta.env.VITE_GATEWAY_WS_URL || "ws://localhost:3002/ws"
 
 let token: string | null = null
 
@@ -22,6 +24,17 @@ async function req(path: string, options?: RequestInit) {
   return body
 }
 
+async function reqBidding(path: string, options?: RequestInit) {
+  const headers: Record<string,string> = {"Content-Type":"application/json", ...(options?.headers as any || {})}
+  if (token) headers.Authorization = `Bearer ${token}`
+  const res = await fetch(`${BIDDING_URL}${path}`, {headers, ...options})
+  const text = await res.text()
+  let body: any
+  try { body = text ? JSON.parse(text) : null } catch { body = text }
+  if (!res.ok) throw new Error(body?.error || body?.message || `Request failed: ${res.status}`)
+  return body
+}
+
 export const api = {
   listProducts: (page=1, limit=20, mine?: boolean) => req(`/products?page=${page}&limit=${limit}${mine ? "&mine=true" : ""}`),
   createProduct: (data: any) => req("/products", {method:"POST", body: JSON.stringify(data)}),
@@ -31,6 +44,14 @@ export const api = {
   listOrders: (mine=false, page=1, limit=20) => req(`/orders?page=${page}&limit=${limit}${mine ? "" : ""}`),
   createOrder: (data: any) => req("/orders", {method:"POST", body: JSON.stringify(data)}),
   deleteOrder: (id: string) => req(`/orders/${id}`, {method:"DELETE"}),
+  listAuctions: (page=1, limit=20, status?: string) => reqBidding(`/auctions?page=${page}&limit=${limit}${status ? `&status=${status}` : ""}`),
+  createAuction: (data: any) => reqBidding("/auctions", {method:"POST", body: JSON.stringify(data)}),
+  placeBid: (id: string, data: any) => reqBidding(`/auctions/${id}/bids`, {method:"POST", body: JSON.stringify(data)}),
+  updateAuctionStatus: (id: string, status: string) => reqBidding(`/auctions/${id}/status`, {method:"PUT", body: JSON.stringify({status})}),
+  closeAuction: (id: string) => reqBidding(`/auctions/${id}/close`, {method:"POST"}),
+  expireAuction: (id: string, force=false) => reqBidding(`/auctions/${id}/expire${force ? "?force=true" : ""}`, {method:"POST"}),
+  deleteAuction: (id: string) => reqBidding(`/auctions/${id}`, {method:"DELETE"}),
+  gatewayWsUrl: (auctionId?: string) => auctionId ? `${GATEWAY_WS}?auctionId=${auctionId}` : GATEWAY_WS,
   register: (data: any) => fetch(`${AUTH_URL}/register`, {
     method:"POST",
     headers: {"Content-Type":"application/json"},

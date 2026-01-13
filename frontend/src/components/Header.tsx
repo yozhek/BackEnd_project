@@ -5,7 +5,7 @@ import {AuthModal} from "./modals/AuthModal"
 import {useState} from "react"
 
 type Props = {
-  activeTab: "home"|"sellers"|"cart"|"buyer"|"sellerProfile"
+  activeTab: "home"|"sellers"|"cart"|"buyer"|"sellerProfile"|"auctions"
 }
 
 export function Header({activeTab}: Props) {
@@ -18,6 +18,7 @@ export function Header({activeTab}: Props) {
       <NavLink className="logo" to="/" onClick={() => setSearch("")}>BleskShop</NavLink>
       <nav className="tabs">
         <NavLink className={linkClass("home")} to="/">Home</NavLink>
+        <NavLink className={linkClass("auctions")} to="/auctions">Auctions</NavLink>
         {isSeller && <NavLink className={linkClass("sellers")} to="/sellers">Seller console</NavLink>}
         {isBuyer && <NavLink className={linkClass("cart")} to="/cart">Cart</NavLink>}
         {isBuyer && <NavLink className={linkClass("buyer")} to="/buyer">Buyer profile</NavLink>}

@@ -1,12 +1,14 @@
 import {useApp} from "../state/appStore"
 
 export function HomeView() {
-  const {products, search, setSearch, openProductModal, isSeller, isBuyer, isAuth} = useApp()
-  const filtered = products.filter(p =>
-    p.title.toLowerCase().includes(search.toLowerCase()) ||
-    p.category.toLowerCase().includes(search.toLowerCase()) ||
-    (p.description || "").toLowerCase().includes(search.toLowerCase())
-  )
+  const {products, auctions, search, setSearch, openProductModal, isSeller, isBuyer, isAuth} = useApp()
+  const auctionProductIds = new Set(auctions.map(a => a.productId))
+  const filtered = products.filter(p => {
+    if (auctionProductIds.has(p.id)) return false
+    if (p.isAuction) return false
+    const text = `${p.title} ${p.category} ${p.description||""}`.toLowerCase()
+    return text.includes(search.toLowerCase())
+  })
   return (
     <section className="panel">
       <div className="panel-head">
