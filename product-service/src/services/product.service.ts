@@ -14,6 +14,7 @@ type ProductDoc = {
   imageBase64?: string
   ownerId?: string
   ownerName?: string
+  isAuction?: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -36,7 +37,8 @@ function mapProduct(doc: any) {
     description: doc.description ?? "",
     imageBase64: doc.imageBase64,
     ownerId: doc.ownerId,
-    ownerName: doc.ownerName
+    ownerName: doc.ownerName,
+    isAuction: doc.isAuction
   }
 }
 
@@ -82,6 +84,7 @@ export async function updateProduct(id: string, patch: ProductUpdateDTO, userId?
       category: patch.category ?? existing.category,
       description,
       imageBase64,
+      isAuction: typeof patch.isAuction === "boolean" ? patch.isAuction : existing.isAuction,
       updatedAt:new Date()
     }
   })
@@ -95,7 +98,8 @@ export async function updateProduct(id: string, patch: ProductUpdateDTO, userId?
     description,
     imageBase64,
     ownerId: existing.ownerId,
-    ownerName: existing.ownerName
+    ownerName: existing.ownerName,
+    isAuction: typeof patch.isAuction === "boolean" ? patch.isAuction : existing.isAuction
   }
 }
 
@@ -124,6 +128,7 @@ function buildProductDoc(dto: ProductCreateDTO, owner?: {id?: string, name?: str
     category: dto.category,
     description: dto.description,
     imageBase64: dto.imageBase64,
+    isAuction: dto.isAuction ?? false,
     ownerId: owner?.id,
     ownerName: owner?.name,
     createdAt: new Date(),
