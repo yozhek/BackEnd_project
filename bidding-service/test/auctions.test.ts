@@ -8,7 +8,15 @@ describe("auctions API", () => {
     const endsAt = new Date(Date.now() + 3600_000).toISOString()
     const res = await request(app)
       .post("/auctions")
-      .send({productId:"p1", productTitle:"Phone", startPrice:100, minIncrement:5, endsAt})
+      .send({
+        productId:"p1",
+        productTitle:"Phone",
+        sellerId:"seller-1",
+        sellerName:"Seller One",
+        startPrice:100,
+        minIncrement:5,
+        endsAt
+      })
       .set("Content-Type","application/json")
     expect(res.status).toBe(201)
     expect(res.body.productId).toBe("p1")
@@ -29,12 +37,20 @@ describe("auctions API", () => {
     const endsAt = new Date(Date.now() + 3600_000).toISOString()
     const created = await request(app)
       .post("/auctions")
-      .send({productId:"p2", productTitle:"Book", startPrice:10, minIncrement:2, endsAt})
+      .send({
+        productId:"p2",
+        productTitle:"Book",
+        sellerId:"seller-2",
+        sellerName:"Seller Two",
+        startPrice:10,
+        minIncrement:2,
+        endsAt
+      })
       .set("Content-Type","application/json")
     const id = created.body.id
     const bid = await request(app)
       .post(`/auctions/${id}/bids`)
-      .send({bidder:"alice", amount:12})
+      .send({bidderId:"alice-id", bidderName:"Alice", amount:12})
       .set("Content-Type","application/json")
     expect(bid.status).toBe(200)
     expect(bid.body.currentAmount).toBe(12)
@@ -44,12 +60,20 @@ describe("auctions API", () => {
     const endsAt = new Date(Date.now() + 3600_000).toISOString()
     const created = await request(app)
       .post("/auctions")
-      .send({productId:"p3", productTitle:"Tablet", startPrice:50, minIncrement:5, endsAt})
+      .send({
+        productId:"p3",
+        productTitle:"Tablet",
+        sellerId:"seller-3",
+        sellerName:"Seller Three",
+        startPrice:50,
+        minIncrement:5,
+        endsAt
+      })
       .set("Content-Type","application/json")
     const id = created.body.id
     const bid = await request(app)
       .post(`/auctions/${id}/bids`)
-      .send({bidder:"bob", amount:51})
+      .send({bidderId:"bob-id", bidderName:"Bob", amount:51})
       .set("Content-Type","application/json")
     expect(bid.status).toBe(400)
   })
@@ -59,6 +83,8 @@ function sampleAuction(productId: string) {
   return {
     productId,
     productTitle:"Sample",
+    sellerId:"seller-sample",
+    sellerName:"Sample Seller",
     startPrice:10,
     minIncrement:1,
     endsAt:new Date(Date.now() + 3600_000),

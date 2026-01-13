@@ -4,7 +4,12 @@ export default defineConfig({
   test: {
     environment: "node",
     setupFiles: ["test/setup.ts"],
-    coverage: {enabled: false, provider: "v8"}
+    coverage: {enabled: false, provider: "v8"},
+    server: {
+      deps: {
+        inline: ["jose"]
+      }
+    }
   }
 })
 

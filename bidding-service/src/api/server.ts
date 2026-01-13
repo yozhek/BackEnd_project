@@ -30,7 +30,9 @@ app.get("/auctions", auctionController.list.bind(auctionController))
 app.get("/auctions/:id", auctionController.getById.bind(auctionController))
 app.post("/auctions", requireAuth(["seller"]), auctionController.create.bind(auctionController))
 app.post("/auctions/:id/bids", requireAuth(["buyer"]), auctionController.bid.bind(auctionController))
-app.put("/auctions/:id/status", requireAuth(["seller"]), auctionController.updateStatus.bind(auctionController))
+app.put("/auctions/:id/status", requireAuth(["seller","buyer"]), auctionController.updateStatus.bind(auctionController))
+app.post("/auctions/:id/close", requireAuth(["seller"]), auctionController.updateStatus.bind(auctionController))
+app.post("/auctions/:id/expire", auctionController.expire.bind(auctionController))
 app.delete("/auctions/:id", requireAuth(["seller"]), auctionController.remove.bind(auctionController))
 
 app.use((_req,res) => {

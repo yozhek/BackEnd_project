@@ -85,6 +85,28 @@ export const swaggerSpec = {
         }
       }
     },
+    "/auctions/{id}/close": {
+      post: {
+        summary: "Close auction and set awaiting_payment for winner",
+        parameters: [{name: "id", in: "path", required: true, schema: {type: "string"}}],
+        responses: {
+          200: {description: "Closed for payment", content: {"application/json": {schema: {$ref: "#/components/schemas/Auction"}}}},
+          204: {description: "Deleted (no bids)"},
+          404: {description: "Not found"}
+        }
+      }
+    },
+    "/auctions/{id}/expire": {
+      post: {
+        summary: "Expire awaiting_payment (reopen or delete if no bids)",
+        parameters: [{name: "id", in: "path", required: true, schema: {type: "string"}}],
+        responses: {
+          200: {description: "Processed", content: {"application/json": {schema: {$ref: "#/components/schemas/Auction"}}}},
+          204: {description: "Deleted"},
+          404: {description: "Not found"}
+        }
+      }
+    },
     "/auctions/{id}/bids": {
       post: {
         summary: "Place bid",
@@ -110,19 +132,27 @@ export const swaggerSpec = {
           id: {type: "string"},
           productId: {type: "string"},
           productTitle: {type: "string"},
+          sellerId: {type: "string"},
+          sellerName: {type: "string"},
+          description: {type: "string"},
+          category: {type: "string"},
+          imageBase64: {type: "string"},
           startPrice: {type: "number"},
           minIncrement: {type: "number"},
           endsAt: {type: "string", format: "date-time"},
           status: {type: "string"},
           currentAmount: {type: "number", nullable: true},
           leadingBidder: {type: "string"},
+          currentWinnerId: {type: "string"},
+          currentWinnerName: {type: "string"},
           bids: {
             type: "array",
             items: {
               type: "object",
               properties: {
                 amount: {type: "number"},
-                bidder: {type: "string"},
+                bidderId: {type: "string"},
+                bidderName: {type: "string"},
                 createdAt: {type: "string", format: "date-time"}
               }
             }
@@ -135,6 +165,11 @@ export const swaggerSpec = {
         properties: {
           productId: {type: "string"},
           productTitle: {type: "string"},
+          sellerId: {type: "string"},
+          sellerName: {type: "string"},
+          description: {type: "string"},
+          category: {type: "string"},
+          imageBase64: {type: "string"},
           startPrice: {type: "number"},
           minIncrement: {type: "number"},
           endsAt: {type: "string", format: "date-time"}
@@ -142,16 +177,17 @@ export const swaggerSpec = {
       },
       AuctionBid: {
         type: "object",
-        required: ["bidder","amount"],
+        required: ["bidderId","bidderName","amount"],
         properties: {
-          bidder: {type: "string"},
+          bidderId: {type: "string"},
+          bidderName: {type: "string"},
           amount: {type: "number"}
         }
       },
       AuctionStatusUpdate: {
         type: "object",
         required: ["status"],
-        properties: {status: {type: "string", enum: ["open","closed","cancelled"]}}
+        properties: {status: {type: "string", enum: ["open","awaiting_payment","closed","cancelled"]}}
       }
     }
   }
