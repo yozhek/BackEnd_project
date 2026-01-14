@@ -1,7 +1,82 @@
+import {useEffect,useState} from "react"
 import {useApp} from "../state/appStore"
+import {api} from "../api/client"
 
 export function SellerProfileView() {
   const {products, auctions, openSellerModal, openAuctionModal, isSeller, username, email, userId, deleteAuction, closeAuction} = useApp()
+  const [tgToken,setTgToken] = useState("")
+  const [tgLink,setTgLink] = useState("")
+  const [tgStatus,setTgStatus] = useState<string>("")
+  const [tgBound,setTgBound] = useState(false)
+  const [tgUsername,setTgUsername] = useState<string>("")
+  const [polling,setPolling] = useState(false)
+
+  useEffect(() => {
+    async function loadBinding() {
+      if (!userId) return
+      try {
+        const b = await api.telegramBinding(userId)
+        if (b) {
+          setTgBound(true)
+          setTgUsername(b.username || "")
+        } else {
+          setTgBound(false)
+          setTgUsername("")
+        }
+      } catch {
+        setTgBound(false)
+        setTgUsername("")
+      }
+    }
+    loadBinding()
+  }, [userId])
+
+  async function pollBinding(attempts=0) {
+    if (!userId || attempts > 12 || tgBound) { setPolling(false); return }
+    try {
+      const b = await api.telegramBinding(userId)
+      if (b) {
+        setTgBound(true)
+        setTgUsername(b.username || "")
+        setTgStatus("Linked")
+        setTgToken("")
+        setTgLink("")
+        setPolling(false)
+        return
+      }
+    } catch {}
+    setTimeout(() => pollBinding(attempts+1), 5000)
+  }
+
+  async function linkTelegram() {
+    if (!userId) return
+    try {
+      const res = await api.telegramInit(userId)
+      setTgToken(res.token)
+      setTgLink(res.link)
+      setTgStatus("Open Telegram and tap Start to link.")
+      setPolling(true)
+      setTimeout(() => pollBinding(0), 1000)
+      if (res.link) window.open(res.link, "_blank")
+    } catch (e:any) {
+      setTgStatus(e.message || "Failed to start linking")
+    }
+  }
+
+  async function unlinkTelegram() {
+    if (!userId) return
+    try {
+      await api.telegramUnlink(userId)
+      setTgBound(false)
+      setTgUsername("")
+      setTgToken("")
+      setTgLink("")
+      setTgStatus("Unlinked")
+    } catch (e:any) {
+      setTgStatus(e.message || "Failed to unlink")
+    }
+  }
+
   if (!isSeller) {
     return (
       <section className="panel">
@@ -17,7 +92,7 @@ export function SellerProfileView() {
     <section className="panel form-panel">
       <div>
         <h2>Seller profile</h2>
-        <div className="profile-card">
+        <div className="profile-card" style={{width:"100%"}}>
           <div className="profile-row">
             <span className="profile-label">Username:</span>
             <span className="profile-value">{username || "Seller"}</span>
@@ -28,6 +103,20 @@ export function SellerProfileView() {
               <span className="profile-value">{email}</span>
             </div>
           )}
+        </div>
+        <div className="profile-card" style={{marginTop:"10px", width:"100%", gap:"8px"}}>
+          <div className="row" style={{gap:"10px", alignItems:"center"}}>
+            <div className="profile-row" style={{gap:"6px"}}>
+              <span className="profile-label">Telegram:</span>
+              <span className="profile-value">{tgBound ? (tgUsername || "Linked") : "Not linked"}</span>
+            </div>
+            {!tgBound && (
+              <button type="button" style={{minWidth:"140px"}} onClick={linkTelegram}>Link Telegram</button>
+            )}
+            {tgBound && (
+              <button className="danger" type="button" style={{minWidth:"140px"}} onClick={unlinkTelegram}>Unlink Telegram</button>
+            )}
+          </div>
         </div>
         <p className="muted" style={{marginTop:"10px"}}>Your listings</p>
       </div>

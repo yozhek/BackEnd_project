@@ -1,0 +1,6 @@
+POST http://localhost:4005/auth/telegram/jwt
+Content-Type: application/json
+
+{
+  "userId": "demo-user"
+}

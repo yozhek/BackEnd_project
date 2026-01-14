@@ -1,0 +1,4 @@
+GET http://localhost:4005/health
+
+###
+GET http://localhost:4005/auth/telegram/binding?userId=demo-user

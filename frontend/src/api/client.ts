@@ -2,6 +2,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000"
 const BIDDING_URL = import.meta.env.VITE_BIDDING_URL || "http://localhost:3001"
 const AUTH_URL = import.meta.env.VITE_AUTH_URL || "http://localhost:3003"
 const GATEWAY_WS = import.meta.env.VITE_GATEWAY_WS_URL || "ws://localhost:3002/ws"
+const NOTIFY_URL = import.meta.env.VITE_NOTIFY_URL || "http://localhost:4005"
 
 let token: string | null = null
 
@@ -61,6 +62,37 @@ export const api = {
     let body: any
     try { body = txt ? JSON.parse(txt) : null } catch { body = txt }
     if (!res.ok) throw new Error(body?.error || `Register failed: ${res.status}`)
+    return body
+  }),
+  telegramInit: (userId: string) => fetch(`${NOTIFY_URL}/auth/telegram/jwt`, {
+    method:"POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({userId})
+  }).then(async res => {
+    const txt = await res.text()
+    let body: any
+    try { body = txt ? JSON.parse(txt) : null } catch { body = txt }
+    if (!res.ok) throw new Error(body?.error || `Request failed: ${res.status}`)
+    return body
+  }),
+  telegramBinding: (userId: string) => fetch(`${NOTIFY_URL}/auth/telegram/binding?userId=${encodeURIComponent(userId)}`).then(async res => {
+    const txt = await res.text()
+    let body: any
+    try { body = txt ? JSON.parse(txt) : null } catch { body = txt }
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error(body?.error || `Request failed: ${res.status}`)
+    return body
+  }),
+  telegramUnlink: (userId: string) => fetch(`${NOTIFY_URL}/auth/telegram/binding`, {
+    method:"DELETE",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({userId})
+  }).then(async res => {
+    if (res.status === 204) return {}
+    const txt = await res.text()
+    let body: any
+    try { body = txt ? JSON.parse(txt) : null } catch { body = txt }
+    if (!res.ok) throw new Error(body?.error || `Request failed: ${res.status}`)
     return body
   })
 }

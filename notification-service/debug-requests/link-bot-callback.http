@@ -1,0 +1,8 @@
+POST http://localhost:4005/auth/telegram/bot-callback
+Content-Type: application/json
+
+{
+  "token": "paste-token-here",
+  "chatId": "123456789",
+  "username": "telegram_username"
+}

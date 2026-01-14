@@ -1,0 +1,6 @@
+DELETE http://localhost:4005/auth/telegram/binding
+Content-Type: application/json
+
+{
+  "userId": "demo-user"
+}

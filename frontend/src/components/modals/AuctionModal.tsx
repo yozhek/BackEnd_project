@@ -67,7 +67,7 @@ export function AuctionModal() {
               </div>
               <div className="muted small" style={{alignSelf:"flex-start"}}>Ends: {new Date(auction.endsAt).toLocaleString()}</div>
               {canBid && (
-                <div className="bid-action" style={{marginTop:"6px", justifyContent:"center"}}>
+                <div className="bid-action" style={{marginTop:"6px", justifyContent:"center", width:"100%"}}>
                   <input
                     className="input-rounded"
                     type="number"

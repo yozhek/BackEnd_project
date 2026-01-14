@@ -33,6 +33,7 @@ services:
       - VITE_KEYCLOAK_REALM=marketplace
       - VITE_KEYCLOAK_CLIENT=frontend
       - VITE_AUTH_URL=http://auth_service:3003
+      - VITE_NOTIFY_URL=http://notification_service:4005
   bidding_service:
     build:
       context: bidding-service
@@ -42,12 +43,14 @@ services:
       - PORT=3001
       - MONGO_URL=mongodb://mongo:27017/marketplace
       - GATEWAY_URL=http://gateway_service:3002/events
+      - NOTIFY_URL=http://notification_service:4005/notify
       - KEYCLOAK_ISSUER=http://localhost:8080/realms/marketplace
       - KEYCLOAK_JWKS_URL=http://keycloak:8080/realms/marketplace/protocol/openid-connect/certs
       - KEYCLOAK_AUDIENCE=account
     depends_on:
       - mongo
       - gateway_service
+      - notification_service
   gateway_service:
     build:
       context: gateway-service
@@ -79,4 +82,5 @@ services:
 
 volumes:
   mongo-data:
+  notification-data:
 

@@ -1,0 +1,13 @@
+POST http://localhost:4005/notify
+Content-Type: application/json
+
+{
+  "type": "bid_placed",
+  "payload": {
+    "auctionId": "demo-auction",
+    "bidderId": "demo-bidder",
+    "bidderName": "Demo User",
+    "amount": 42,
+    "productTitle": "Demo auction item"
+  }
+}
