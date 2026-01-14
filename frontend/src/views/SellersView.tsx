@@ -43,7 +43,6 @@ export function SellersView() {
         const createdProduct = await api.createProduct({
           title: productForm.title.trim(),
           price: priceNum,
-          discountPercent: 0,
           category: productForm.category.trim(),
           description: productForm.description.trim(),
           imageBase64: productForm.imageBase64 || undefined,
