@@ -79,6 +79,23 @@ services:
       - KEYCLOAK_REALM=marketplace
       - KEYCLOAK_ADMIN_USER=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin
+  notification_service:
+    build:
+      context: notification-service
+    ports:
+      - "4005:4005"
+    environment:
+      - PORT=4005
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME}
+    volumes:
+      - notification-data:/app/data
+  telegram_bot:
+    build:
+      context: telegram-bot
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - NOTIFY_CALLBACK_URL=http://notification_service:4005/auth/telegram/bot-callback
 
 volumes:
   mongo-data:

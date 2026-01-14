@@ -102,4 +102,9 @@ async function handleNotify(req: NotifyPayload) {
 }
 
 const port = process.env.PORT || 4005
-app.listen(port, () => console.log(`Notification service running on ${port}`))
+
+if (process.env.NODE_ENV !== "test") {
+  app.listen(port, () => console.log(`Notification service running on ${port}`))
+}
+
+export {app}

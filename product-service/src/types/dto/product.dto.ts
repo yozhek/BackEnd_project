@@ -14,7 +14,7 @@ function readDiscount(v: any, present: boolean, errors: string[]) {
   if (!present) return 0
   const n = typeof v === "number" ? v : Number(v)
   if (!Number.isFinite(n)) errors.push("discountPercent must be a number")
-  else if (n < 0 || n > 100) errors.push("discountPercent must be >= 0 and <= 100")
+  else if (n <= 0 || n > 100) errors.push("discountPercent must be > 0 and <= 100")
   return n
 }
 

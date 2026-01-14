@@ -5,8 +5,10 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "test/**/*"]
 }

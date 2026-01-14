@@ -5,7 +5,8 @@
   "main": "src/app.ts",
   "scripts": {
     "start": "vite-node src/app.ts",
-    "dev": "vite-node --watch src/app.ts"
+    "dev": "vite-node --watch src/app.ts",
+    "test": "vitest --no-file-parallelism"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
@@ -14,7 +15,10 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
-    "@types/node": "^22.19.0"
+    "@types/node": "^22.19.0",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^6.3.4",
+    "vitest": "^2.1.1"
   },
   "type": "commonjs"
 }
