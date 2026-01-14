@@ -130,7 +130,7 @@ export async function closeAuctionWithWinner(id: string, sellerId?: string) {
     },
     {returnDocument: "after"}
   )
-  const updated = (res as any)?.value as AuctionDoc | null
+  const updated = unwrapResult<AuctionDoc>(res)
   if (!updated) return {ok:false, reason:"not_found"} as const
   await notifyNotification("auction_won", {
     auctionId: id,
@@ -191,7 +191,7 @@ export async function expireAwaitingPayment(id: string, force?: boolean) {
     },
     {returnDocument: "after"}
   )
-  const updated = (res as any)?.value as AuctionDoc | null
+  const updated = unwrapResult<AuctionDoc>(res)
   if (!updated) return {ok:false, reason:"not_found"} as const
   return {ok:true, auction: mapAuction(updated)} as const
 }
@@ -205,7 +205,7 @@ export async function updateAuctionStatus(id: string, status: AuctionStatus) {
     {$set: {status, updatedAt: new Date()}},
     {returnDocument: "after"}
   )
-  const updated = (res as any)?.value as AuctionDoc | null
+  const updated = unwrapResult<AuctionDoc>(res)
   if (!updated) return null
   const mapped = mapAuction(updated)
   await notifyGateway("auction-status", {auctionId: mapped.id, status: mapped.status})
@@ -326,7 +326,7 @@ async function settleIfExpired(doc: AuctionDoc): Promise<AuctionDoc | null> {
     },
     {returnDocument: "after"}
   )
-  const updated = (res as any)?.value as AuctionDoc | null
+  const updated = unwrapResult<AuctionDoc>(res)
   if (!updated) return null
   await notifyNotification("auction_won", {
     auctionId: updated._id?.toString() || "",
@@ -349,7 +349,7 @@ async function settleIfExpired(doc: AuctionDoc): Promise<AuctionDoc | null> {
 
 function mapAuction(doc: AuctionDoc) {
   return {
-    id: doc._id?.toString(),
+    id: doc._id?.toHexString(),
     productId: doc.productId,
     productTitle: doc.productTitle,
     sellerId: doc.sellerId,
@@ -454,4 +454,10 @@ async function notifyNotification(type: string, payload: any) {
   } catch {
     // ignore notification failures
   }
+}
+
+function unwrapResult<T>(res: any): T | null {
+  if (!res) return null
+  if (Object.prototype.hasOwnProperty.call(res, "value")) return res.value as T | null
+  return res as T | null
 }

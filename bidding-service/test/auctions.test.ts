@@ -4,6 +4,12 @@ import {app} from "../src/api/server"
 import {getDb} from "../src/database/mongo"
 
 describe("auctions API", () => {
+  it("returns health", async () => {
+    const res = await request(app).get("/health")
+    expect(res.status).toBe(200)
+    expect(res.body.status).toBe("ok")
+  })
+
   it("creates auction", async () => {
     const endsAt = new Date(Date.now() + 3600_000).toISOString()
     const res = await request(app)
@@ -77,6 +83,60 @@ describe("auctions API", () => {
       .set("Content-Type","application/json")
     expect(bid.status).toBe(400)
   })
+
+  it("gets auction by id", async () => {
+    const created = await createAuction("get-1")
+    const res = await request(app).get(`/auctions/${created.body.id}`)
+    expect(res.status).toBe(200)
+    expect(res.body.id).toBe(created.body.id)
+  })
+
+  it("updates status to cancelled", async () => {
+    await createAuction("status-1")
+    const id = await getIdByProduct("status-1")
+    const res = await request(app)
+      .put(`/auctions/${id}/status`)
+      .send({status:"cancelled"})
+    expect(res.status).toBe(200)
+    expect(res.body.status).toBe("cancelled")
+  })
+
+  it("closes auction without bids (deletes)", async () => {
+    await createAuction("close-empty")
+    const id = await getIdByProduct("close-empty")
+    const res = await request(app).post(`/auctions/${id}/close`)
+    expect(res.status).toBe(204)
+    const after = await request(app).get(`/auctions/${id}`)
+    expect(after.status).toBe(404)
+  })
+
+  it("closes auction with bid to awaiting_payment", async () => {
+    await createAuction("close-bid")
+    const id = await getIdByProduct("close-bid")
+    await placeBid(id, 15)
+    const res = await request(app).post(`/auctions/${id}/close`)
+    expect(res.status).toBe(200)
+    expect(res.body.status).toBe("awaiting_payment")
+  })
+
+  it("expires awaiting payment and reopens", async () => {
+    await createAuction("expire-1")
+    const id = await getIdByProduct("expire-1")
+    await placeBid(id, 20)
+    await request(app).post(`/auctions/${id}/close`)
+    const res = await request(app).post(`/auctions/${id}/expire?force=true`)
+    expect(res.status).toBe(200)
+    expect(res.body.status).toBe("open")
+    expect(res.body.bids.length).toBe(0)
+  })
+
+  it("deletes auction", async () => {
+    const created = await createAuction("delete-1")
+    const res = await request(app).delete(`/auctions/${created.body.id}`)
+    expect(res.status).toBe(204)
+    const after = await request(app).get(`/auctions/${created.body.id}`)
+    expect(after.status).toBe(404)
+  })
 })
 
 function sampleAuction(productId: string) {
@@ -95,4 +155,34 @@ function sampleAuction(productId: string) {
     createdAt:new Date(),
     updatedAt:new Date()
   }
+}
+
+function createAuction(productId: string) {
+  const endsAt = new Date(Date.now() + 3600_000).toISOString()
+  return request(app)
+    .post("/auctions")
+    .send({
+      productId,
+      productTitle:`Title-${productId}`,
+      sellerId:`seller-${productId}`,
+      sellerName:"Seller",
+      startPrice:10,
+      minIncrement:1,
+      endsAt
+    })
+    .set("Content-Type","application/json")
+}
+
+async function placeBid(id: string, amount: number) {
+  return request(app)
+    .post(`/auctions/${id}/bids`)
+    .send({bidderId:"bidder-1", bidderName:"Bidder", amount})
+    .set("Content-Type","application/json")
+}
+
+async function getIdByProduct(productId: string) {
+  const db = getDb()
+  const doc = await db.collection("auctions").findOne({productId})
+  if (!doc?._id) throw new Error("auction not found for " + productId)
+  return doc._id.toHexString()
 }
