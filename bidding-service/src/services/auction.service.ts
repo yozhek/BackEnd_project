@@ -30,6 +30,10 @@ type AuctionDoc = {
   updatedAt: Date
 }
 
+type PlaceBidResult =
+  | {ok:true, auction: ReturnType<typeof mapAuction>}
+  | {ok:false, reason:"not_found" | "conflict" | "closed" | "expired" | "owner_forbidden" | "low_bid", minAllowed?: number}
+
 export async function createAuction(dto: AuctionCreateDTO) {
   const db = getDb()
   const doc = buildDoc(dto)
@@ -95,59 +99,13 @@ export async function closeAuctionWithWinner(id: string, sellerId?: string) {
   const _id = toObjectId(id)
   if (!_id) return {ok:false, reason:"not_found"} as const
   const doc = await loadAuction(_id)
-  if (!doc) return {ok:false, reason:"not_found"} as const
-  if (sellerId && doc.sellerId && doc.sellerId !== sellerId) return {ok:false, reason:"forbidden"} as const
-  if (!doc.bids || doc.bids.length === 0) {
-    await deleteAuction(id)
-    await notifyNotification("auction_closed", {
-      auctionId: id,
-      sellerId: doc.sellerId,
-      sellerName: doc.sellerName,
-      productTitle: doc.productTitle,
-      finalPrice: 0,
-      winnerName: "no bids"
-    })
-    return {ok:true, deleted:true} as const
-  }
-  const top = [...doc.bids].sort((a,b) => {
-    if (b.amount !== a.amount) return b.amount - a.amount
-    return b.createdAt.getTime() - a.createdAt.getTime()
-  })[0]
-  const db = getDb()
-  const res = await db.collection<AuctionDoc>("auctions").findOneAndUpdate(
-    {_id},
-    {
-      $set: {
-        status: "awaiting_payment",
-        winnerId: top.bidderId,
-        winnerName: top.bidderName,
-        winnerBid: top.amount,
-        currentWinnerId: top.bidderId,
-        currentWinnerName: top.bidderName,
-        paymentExpiresAt: new Date(Date.now() + 24*3600_000),
-        updatedAt: new Date()
-      }
-    },
-    {returnDocument: "after"}
-  )
-  const updated = unwrapResult<AuctionDoc>(res)
+  const auth = authorizeClose(doc, sellerId)
+  if (!auth.doc) return auth.result
+  if (!hasBids(auth.doc)) return closeWithoutBids(id, auth.doc)
+  const top = pickTopBid(auth.doc)
+  const updated = await setAwaitingPayment(auth.doc._id!, top)
   if (!updated) return {ok:false, reason:"not_found"} as const
-  await notifyNotification("auction_won", {
-    auctionId: id,
-    bidderId: top.bidderId,
-    bidderName: top.bidderName,
-    amount: top.amount,
-    productTitle: doc.productTitle,
-    paymentExpiresAt: new Date(Date.now() + 24*3600_000).toISOString()
-  })
-  await notifyNotification("auction_closed", {
-    auctionId: id,
-    sellerId: doc.sellerId,
-    sellerName: doc.sellerName,
-    productTitle: doc.productTitle,
-    finalPrice: top.amount,
-    winnerName: top.bidderName
-  })
+  await notifyWinnerAndSeller(id, auth.doc, top)
   return {ok:true, auction: mapAuction(updated)} as const
 }
 
@@ -158,59 +116,30 @@ export async function expireAwaitingPayment(id: string, force?: boolean) {
   const doc = await db.collection<AuctionDoc>("auctions").findOne({_id})
   if (!doc) return {ok:false, reason:"not_found"} as const
   if (doc.status !== "awaiting_payment") return {ok:true, auction: mapAuction(doc)} as const
-  const now = Date.now()
-  if (!force && (!doc.paymentExpiresAt || doc.paymentExpiresAt.getTime() > now)) return {ok:true, auction: mapAuction(doc)} as const
-  // payment expired: if no bids overall, delete; else reopen for another 24h
-  if (!doc.bids || doc.bids.length === 0) {
+  if (shouldWaitPayment(doc, force)) return {ok:true, auction: mapAuction(doc)} as const
+  if (!hasBids(doc)) {
     await deleteAuction(id)
     return {ok:true, deleted:true} as const
   }
-  const res = await db.collection<AuctionDoc>("auctions").findOneAndUpdate(
-    {_id},
-    {
-      $set: {
-        status: "open",
-        endsAt: (() => {
-          const now = Date.now()
-          const minEnd = now + 24*3600_000
-          const currentEnd = doc.endsAt?.getTime() ?? 0
-          return new Date(currentEnd <= minEnd ? minEnd : currentEnd)
-        })(),
-        paymentExpiresAt: null,
-        winnerId: undefined,
-        winnerName: undefined,
-        winnerBid: undefined,
-        currentAmount: null,
-        currentWinnerId: undefined,
-        currentWinnerName: undefined,
-        leadingBidder: undefined,
-        bids: [],
-        round: (doc.round || 1) + 1,
-        updatedAt: new Date()
-      }
-    },
-    {returnDocument: "after"}
-  )
-  const updated = unwrapResult<AuctionDoc>(res)
-  if (!updated) return {ok:false, reason:"not_found"} as const
-  return {ok:true, auction: mapAuction(updated)} as const
+  const reopened = await reopenAuction(_id, doc)
+  if (!reopened) return {ok:false, reason:"not_found"} as const
+  return {ok:true, auction: mapAuction(reopened)} as const
 }
 
 export async function updateAuctionStatus(id: string, status: AuctionStatus) {
   const db = getDb()
   const _id = toObjectId(id)
   if (!_id) return null
-  const res = await db.collection<AuctionDoc>("auctions").findOneAndUpdate(
-    {_id},
-    {$set: {status, updatedAt: new Date()}},
-    {returnDocument: "after"}
-  )
+  const existing = await db.collection<AuctionDoc>("auctions").findOne({_id})
+  if (!existing) return null
+  const res = await db.collection<AuctionDoc>("auctions").findOneAndUpdate({_id}, {$set: {status, updatedAt: new Date()}}, {returnDocument: "after"})
   const updated = unwrapResult<AuctionDoc>(res)
   if (!updated) return null
   const mapped = mapAuction(updated)
   await notifyGateway("auction-status", {auctionId: mapped.id, status: mapped.status})
   if (status === "closed" && mapped.currentWinnerId && mapped.winnerBid) {
-    await notifyNotification("auction_won", {
+    const type = existing.status === "awaiting_payment" ? "order_completed" : "auction_won"
+    await notifyNotification(type, {
       auctionId: mapped.id,
       bidderId: mapped.currentWinnerId,
       bidderName: mapped.currentWinnerName,
@@ -230,43 +159,17 @@ export async function updateAuctionStatus(id: string, status: AuctionStatus) {
   return mapped
 }
 
-export async function placeBid(id: string, bid: AuctionBidDTO) {
+export async function placeBid(id: string, bid: AuctionBidDTO): Promise<PlaceBidResult> {
   const _id = toObjectId(id)
   if (!_id) return {ok:false, reason:"not_found"} as const
   const doc = await loadAuction(_id)
-  if (!doc) return {ok:false, reason:"not_found"} as const
-  const state = validateBidState(doc)
-  if (state) return state
-  if (bid.bidderId === doc.sellerId) return {ok:false, reason:"owner_forbidden"} as const
-  const minAllowed = computeMinAllowed(doc)
-  if (bid.amount < minAllowed) return {ok:false, reason:"low_bid", minAllowed} as const
-  const prevWinnerId = doc.currentWinnerId
-  const prevWinnerName = doc.currentWinnerName
-  const updated = await saveBid(_id, doc, bid)
+  const validation = validateBidFlow(doc, bid)
+  if (!validation.ok) return validation.result
+  const prev = {id: doc!.currentWinnerId, name: doc!.currentWinnerName}
+  const updated = await saveBid(_id, doc!, bid)
   if (!updated) return {ok:false, reason:"conflict"} as const
   const auction = mapAuction(updated)
-  await notifyGateway("bid", {
-    auctionId: auction.id,
-    amount: bid.amount,
-    bidderId: bid.bidderId,
-    bidderName: bid.bidderName
-  })
-  await notifyNotification("bid_placed", {
-    auctionId: auction.id,
-    bidderId: bid.bidderId,
-    bidderName: bid.bidderName,
-    amount: bid.amount,
-    productTitle: auction.productTitle
-  })
-  if (prevWinnerId && prevWinnerId !== bid.bidderId) {
-    await notifyNotification("outbid", {
-      auctionId: auction.id,
-      bidderId: prevWinnerId,
-      bidderName: prevWinnerName,
-      amount: bid.amount,
-      productTitle: auction.productTitle
-    })
-  }
+  await notifyBidFlow(auction, bid, prev)
   return {ok:true, auction} as const
 }
 
@@ -301,49 +204,14 @@ function buildDoc(dto: AuctionCreateDTO): AuctionDoc {
 async function settleIfExpired(doc: AuctionDoc): Promise<AuctionDoc | null> {
   if (doc.status !== "open") return doc
   if (!doc.endsAt || doc.endsAt.getTime() > Date.now()) return doc
-  if (!doc.bids || doc.bids.length === 0) {
+  if (!hasBids(doc)) {
     await deleteAuction(doc._id?.toString() || "")
     return null
   }
-  const top = [...doc.bids].sort((a,b) => {
-    if (b.amount !== a.amount) return b.amount - a.amount
-    return b.createdAt.getTime() - a.createdAt.getTime()
-  })[0]
-  const db = getDb()
-  const res = await db.collection<AuctionDoc>("auctions").findOneAndUpdate(
-    {_id: doc._id},
-    {
-      $set: {
-        status: "awaiting_payment",
-        winnerId: top.bidderId,
-        winnerName: top.bidderName,
-        winnerBid: top.amount,
-        currentWinnerId: top.bidderId,
-        currentWinnerName: top.bidderName,
-        paymentExpiresAt: new Date(Date.now() + 24*3600_000),
-        updatedAt: new Date()
-      }
-    },
-    {returnDocument: "after"}
-  )
-  const updated = unwrapResult<AuctionDoc>(res)
+  const top = pickTopBid(doc)
+  const updated = await setAwaitingPayment(doc._id!, top)
   if (!updated) return null
-  await notifyNotification("auction_won", {
-    auctionId: updated._id?.toString() || "",
-    bidderId: top.bidderId,
-    bidderName: top.bidderName,
-    amount: top.amount,
-    productTitle: updated.productTitle,
-    paymentExpiresAt: new Date(Date.now() + 24*3600_000).toISOString()
-  })
-  await notifyNotification("auction_closed", {
-    auctionId: updated._id?.toString() || "",
-    sellerId: updated.sellerId,
-    sellerName: updated.sellerName,
-    productTitle: updated.productTitle,
-    finalPrice: top.amount,
-    winnerName: top.bidderName
-  })
+  await notifyWinnerAndSeller(doc._id?.toString() || "", doc, top)
   return updated
 }
 
@@ -460,4 +328,159 @@ function unwrapResult<T>(res: any): T | null {
   if (!res) return null
   if (Object.prototype.hasOwnProperty.call(res, "value")) return res.value as T | null
   return res as T | null
+}
+
+function authorizeClose(doc: AuctionDoc | null, sellerId?: string) {
+  if (!doc) return {doc: null, result: {ok:false, reason:"not_found"} as const}
+  if (sellerId && doc.sellerId && doc.sellerId !== sellerId) {
+    return {doc: null, result: {ok:false, reason:"forbidden"} as const}
+  }
+  return {doc}
+}
+
+function hasBids(doc: AuctionDoc) {
+  return !!doc.bids && doc.bids.length > 0
+}
+
+async function closeWithoutBids(id: string, doc: AuctionDoc) {
+  await deleteAuction(id)
+  await notifyNotification("auction_closed", {
+    auctionId: id,
+    sellerId: doc.sellerId,
+    sellerName: doc.sellerName,
+    productTitle: doc.productTitle,
+    finalPrice: 0,
+    winnerName: "no bids"
+  })
+  return {ok:true, deleted:true} as const
+}
+
+function pickTopBid(doc: AuctionDoc) {
+  return [...doc.bids].sort((a,b) => {
+    if (b.amount !== a.amount) return b.amount - a.amount
+    return b.createdAt.getTime() - a.createdAt.getTime()
+  })[0]
+}
+
+async function setAwaitingPayment(_id: ObjectId, top: {amount:number, bidderId:string, bidderName:string}) {
+  const db = getDb()
+  const res = await db.collection<AuctionDoc>("auctions").findOneAndUpdate(
+    {_id},
+    {
+      $set: {
+        status: "awaiting_payment",
+        winnerId: top.bidderId,
+        winnerName: top.bidderName,
+        winnerBid: top.amount,
+        currentWinnerId: top.bidderId,
+        currentWinnerName: top.bidderName,
+        paymentExpiresAt: new Date(Date.now() + 24*3600_000),
+        updatedAt: new Date()
+      }
+    },
+    {returnDocument: "after"}
+  )
+  return unwrapResult<AuctionDoc>(res)
+}
+
+async function notifyWinnerAndSeller(id: string, doc: AuctionDoc, top: {amount:number, bidderId:string, bidderName:string}) {
+  await notifyNotification("auction_won", {
+    auctionId: id,
+    bidderId: top.bidderId,
+    bidderName: top.bidderName,
+    amount: top.amount,
+    productTitle: doc.productTitle,
+    paymentExpiresAt: new Date(Date.now() + 24*3600_000).toISOString()
+  })
+  await notifyNotification("auction_closed", {
+    auctionId: id,
+    sellerId: doc.sellerId,
+    sellerName: doc.sellerName,
+    productTitle: doc.productTitle,
+    finalPrice: top.amount,
+    winnerName: top.bidderName
+  })
+}
+
+function shouldWaitPayment(doc: AuctionDoc, force?: boolean) {
+  const now = Date.now()
+  return !force && (!doc.paymentExpiresAt || doc.paymentExpiresAt.getTime() > now)
+}
+
+async function reopenAuction(_id: ObjectId, doc: AuctionDoc) {
+  const db = getDb()
+  const res = await db.collection<AuctionDoc>("auctions").findOneAndUpdate(
+    {_id},
+    {
+      $set: {
+        status: "open",
+        endsAt: computeNewEnds(doc.endsAt),
+        paymentExpiresAt: null,
+        winnerId: undefined,
+        winnerName: undefined,
+        winnerBid: undefined,
+        currentAmount: null,
+        currentWinnerId: undefined,
+        currentWinnerName: undefined,
+        leadingBidder: undefined,
+        bids: [],
+        round: (doc.round || 1) + 1,
+        updatedAt: new Date()
+      }
+    },
+    {returnDocument: "after"}
+  )
+  return unwrapResult<AuctionDoc>(res)
+}
+
+function computeNewEnds(current?: Date) {
+  const now = Date.now()
+  const minEnd = now + 24*3600_000
+  const currentEnd = current?.getTime() ?? 0
+  return new Date(currentEnd <= minEnd ? minEnd : currentEnd)
+}
+
+type BidValidationResult =
+  | {ok:true}
+  | {ok:false, result:
+      | {ok:false, reason:"not_found"}
+      | {ok:false, reason:"closed"}
+      | {ok:false, reason:"expired"}
+      | {ok:false, reason:"owner_forbidden"}
+      | {ok:false, reason:"low_bid", minAllowed: number}
+    }
+
+function validateBidFlow(doc: AuctionDoc | null, bid: AuctionBidDTO): BidValidationResult {
+  if (!doc) return {ok:false, result: {ok:false, reason:"not_found"} as const}
+  const state = validateBidState(doc)
+  if (state) return {ok:false, result: state}
+  if (bid.bidderId === doc.sellerId) return {ok:false, result: {ok:false, reason:"owner_forbidden"} as const}
+  const minAllowed = computeMinAllowed(doc)
+  if (bid.amount < minAllowed) return {ok:false, result: {ok:false, reason:"low_bid", minAllowed} as const}
+  return {ok:true}
+}
+
+async function notifyBidFlow(auction: ReturnType<typeof mapAuction>, bid: AuctionBidDTO, prev: {id?: string | null, name?: string | null}) {
+  await notifyGateway("bid", {
+    auctionId: auction.id,
+    amount: bid.amount,
+    bidderId: bid.bidderId,
+    bidderName: bid.bidderName
+  })
+  await notifyNotification("bid_placed", {
+    auctionId: auction.id,
+    bidderId: bid.bidderId,
+    bidderName: bid.bidderName,
+    amount: bid.amount,
+    productTitle: auction.productTitle
+  })
+  if (prev.id && prev.id !== bid.bidderId) {
+    await notifyNotification("outbid", {
+      auctionId: auction.id,
+      bidderId: prev.id,
+      bidderName: prev.name,
+      amount: bid.amount,
+      productTitle: auction.productTitle
+    })
+  }
 }

@@ -114,23 +114,13 @@ export async function listOrders(page: number, limit: number, buyerId?: string) 
 
 export async function updateOrder(id: string, patch: OrderUpdateDTO, buyerId?: string) {
   const db = getDb()
-  let _id
-  try { _id = new ObjectId(id) } catch { return null }
-  const existing = await db.collection<OrderDoc>("orders").findOne({_id})
+  const existing = await loadOrder(id, db)
   if (!existing) return null
-  if (buyerId && existing.buyerId && existing.buyerId !== buyerId) return {forbidden:true} as any
+  if (isForbiddenBuyer(existing, buyerId)) return {forbidden:true} as any
   const enriched = patch.items ? await ensureProductsAndTotal(patch.items) : null
-  const toSet = {
-    items: enriched ? enriched.items : existing.items,
-    totalPrice: enriched ? enriched.totalPrice : existing.totalPrice,
-    status: patch.status ?? existing.status,
-    buyerId: existing.buyerId,
-    buyerName: existing.buyerName,
-    buyerEmail: existing.buyerEmail,
-    updatedAt: new Date()
-  }
-  await db.collection("orders").updateOne({_id}, {$set: toSet})
-  return mapOrder({_id, ...toSet})
+  const updated = mergeOrderPatch(existing, patch, enriched)
+  await db.collection("orders").updateOne({_id: existing._id!}, {$set: updated.dbSet})
+  return mapOrder({_id: existing._id, ...updated.dbSet})
 }
 
 export async function deleteOrder(id: string, buyerId?: string) {
@@ -143,4 +133,29 @@ export async function deleteOrder(id: string, buyerId?: string) {
   }
   const res = await db.collection("orders").deleteOne({_id})
   return res.deletedCount === 1
+}
+
+async function loadOrder(id: string, db: ReturnType<typeof getDb>) {
+  try { return await db.collection<OrderDoc>("orders").findOne({_id: new ObjectId(id)}) }
+  catch { return null }
+}
+
+function isForbiddenBuyer(existing: OrderDoc, buyerId?: string) {
+  return !!(buyerId && existing.buyerId && existing.buyerId !== buyerId)
+}
+
+function mergeOrderPatch(existing: OrderDoc & {_id?: ObjectId}, patch: OrderUpdateDTO, enriched: {items:any[], totalPrice:number} | null) {
+  const items = enriched ? enriched.items : existing.items
+  const totalPrice = enriched ? enriched.totalPrice : existing.totalPrice
+  const status = patch.status ?? existing.status
+  const dbSet = {
+    items,
+    totalPrice,
+    status,
+    buyerId: existing.buyerId,
+    buyerName: existing.buyerName,
+    buyerEmail: existing.buyerEmail,
+    updatedAt: new Date()
+  }
+  return {dbSet}
 }

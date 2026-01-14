@@ -2,6 +2,7 @@ import express from "express"
 import {errorHandler} from "../middleware/error.middleware"
 import {validateRegister} from "../types/dto/register.dto"
 import {registerUser} from "../services/keycloak.service"
+import {swaggerMiddleware} from "../docs/swagger"
 
 const app = express()
 
@@ -15,6 +16,8 @@ app.use((req,res,next) => {
   if (req.method === "OPTIONS") return res.sendStatus(204)
   next()
 })
+
+app.use("/docs", ...swaggerMiddleware())
 
 app.get("/health", (_req,res) => {
   res.status(200).json({status:"ok"})

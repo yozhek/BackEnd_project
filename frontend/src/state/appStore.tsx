@@ -297,9 +297,15 @@ export function AppProvider({children, auth}: {children: ReactNode, auth?: {isAu
 
   function addToCart(product: Product, qty=1) {
     if (!isBuyer) return
+    setStatus(undefined)
+    setError(undefined)
     setCart(prev => {
       const existing = prev.find(p => p.product.id === product.id)
-      if (existing) return prev.map(p => p.product.id === product.id ? {...p, quantity: p.quantity + qty} : p)
+      if (existing) {
+        setStatus("Quantity updated in cart")
+        return prev.map(p => p.product.id === product.id ? {...p, quantity: p.quantity + qty} : p)
+      }
+      setStatus("Added to cart")
       return [...prev, {product, quantity: qty}]
     })
   }

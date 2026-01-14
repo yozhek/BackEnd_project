@@ -54,6 +54,14 @@ export function removeBinding(userId: string) {
   writeJson(bindingFile, list)
 }
 
+export function removeBindingByChat(chatId: string) {
+  const list = loadBindings()
+  const found = list.find(b => b.chatId === chatId)
+  if (!found) return null
+  writeJson(bindingFile, list.filter(b => b.chatId !== chatId))
+  return found
+}
+
 export function createPending(userId: string): Pending {
   const list = readJson<Pending[]>(pendingFile, []).filter(p => Date.now() - p.createdAt < 10*60*1000)
   const token = randomUUID()

@@ -3,6 +3,7 @@ import fetch from "node-fetch"
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN 
 const callbackUrl = process.env.NOTIFY_CALLBACK_URL || "http://notification_service:4005/auth/telegram/bot-callback"
+const unlinkUrl = process.env.NOTIFY_UNLINK_URL || "http://notification_service:4005/auth/telegram/bot-unlink"
 
 if (!botToken) {
   console.error("TELEGRAM_BOT_TOKEN missing")
@@ -48,6 +49,26 @@ bot.onText(/^\/start\s+(.+)/, async (msg, match) => {
 /** @param {{chat:{id:string|number}}} msg */
 bot.onText(/^\/start$/, msg => {
   bot.sendMessage(msg.chat.id, "Please use the link button in the app to generate a token.")
+})
+
+bot.onText(/^\/unlink$/, async msg => {
+  try {
+    const res = await fetch(unlinkUrl, {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({chatId: String(msg.chat.id)})
+    })
+    if (res.status === 200) {
+      await bot.sendMessage(msg.chat.id, "Telegram unlinked from BleskShop.")
+    } else if (res.status === 204) {
+      await bot.sendMessage(msg.chat.id, "No binding found for this Telegram.")
+    } else {
+      await bot.sendMessage(msg.chat.id, "Unlink failed. Try again.")
+    }
+  } catch (err) {
+    console.error(err)
+    await bot.sendMessage(msg.chat.id, "Unlink failed.")
+  }
 })
 
 console.log("Telegram bot started")

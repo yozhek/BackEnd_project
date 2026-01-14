@@ -5,7 +5,7 @@ export type ProductCreateDTO = {
   price: number
   discountPercent: number
   category: string
-  description: string
+  description?: string
   imageBase64?: string
   isAuction?: boolean
 }
@@ -14,7 +14,7 @@ function readDiscount(v: any, present: boolean, errors: string[]) {
   if (!present) return 0
   const n = typeof v === "number" ? v : Number(v)
   if (!Number.isFinite(n)) errors.push("discountPercent must be a number")
-  else if (n <= 0 || n > 100) errors.push("discountPercent must be > 0 and <= 100")
+  else if (n < 0 || n > 100) errors.push("discountPercent must be >= 0 and <= 100")
   return n
 }
 
@@ -25,7 +25,7 @@ export function validateProductCreate(input: any): {value?: ProductCreateDTO, er
   const hasDiscount = hasProp(input, "discountPercent")
   const discountPercent = readDiscount(input?.discountPercent, hasDiscount, errors)
   const category = readNonEmptyString(input?.category, "category", errors)
-  const description = readNonEmptyString(input?.description, "description", errors)
+  const description = typeof input?.description === "string" ? input.description.trim() : ""
   let imageBase64: string|undefined
   if (typeof input?.imageBase64 !== "undefined") {
     imageBase64 = readNonEmptyString(input.imageBase64, "imageBase64", errors)

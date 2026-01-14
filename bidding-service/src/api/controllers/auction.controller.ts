@@ -58,7 +58,7 @@ export class AuctionController {
         bidderId: value!.bidderId || user!.sub!,
         bidderName: value!.bidderName || user!.username || user!.email || "bidder"
       }
-      const result = await placeBid(req.params.id,dto)
+      const result: PlaceBidResult = await placeBid(req.params.id,dto)
       if (!result.ok) return handleBidError(res,result)
       res.status(200).json(result.auction)
     } catch (e) { next(e) }
@@ -66,23 +66,15 @@ export class AuctionController {
 
   async updateStatus(req: Request,res: Response,next: NextFunction) {
     try {
-      const requestedStatus = req.path.endsWith("/close") ? "awaiting_payment" : undefined
-      const {value,errors} = validateAuctionUpdate({...req.body, ...(requestedStatus ? {status: requestedStatus} : {})})
+      const status = deriveStatus(req)
+      const {value,errors} = validateAuctionUpdate({...req.body, ...(status ? {status} : {})})
       if (errors) return res.status(400).json({errors})
       const auction = await getAuctionById(req.params.id)
       if (!auction) return res.status(404).json({error:"Not Found"})
       const user = readUser(req)
-      const isWinnerClose = value!.status === "closed" && auction.status === "awaiting_payment" && auction.winnerId && user?.sub === auction.winnerId
-      if (!isWinnerClose && auction.sellerId && user?.sub && auction.sellerId !== user.sub) {
-        return res.status(403).json({error:"Forbidden"})
-      }
-      if (value!.status === "awaiting_payment") {
-        const result = await closeAuctionWithWinner(req.params.id, user?.sub)
-        if (!result.ok) return res.status(result.reason === "not_found" ? 404 : 403).json({error: "Cannot close auction"})
-        if ((result as any).deleted) return res.status(204).send()
-        return res.status(200).json(result.auction)
-      }
-      const updated = await updateAuctionStatus(req.params.id,value!.status!)
+      if (isForbiddenUpdate(auction, user, value!.status)) return res.status(403).json({error:"Forbidden"})
+      if (value!.status === "awaiting_payment") return await respondClose(req.params.id, user?.sub, res)
+      const updated = await updateAuctionStatus(req.params.id, value!.status!)
       if (!updated) return res.status(404).json({error:"Not Found"})
       res.status(200).json(updated)
     } catch (e) { next(e) }
@@ -117,10 +109,28 @@ function readUser(req: Request) {
   return (req as any).user as {sub?: string, username?: string, email?: string, roles?: string[]} | undefined
 }
 
-function handleBidError(res: Response, result: any) {
+function deriveStatus(req: Request) {
+  return req.path.endsWith("/close") ? "awaiting_payment" : undefined
+}
+
+function isForbiddenUpdate(auction: any, user: any, status?: string) {
+  const isWinnerClose = status === "closed" && auction.status === "awaiting_payment" && auction.winnerId && user?.sub === auction.winnerId
+  return !isWinnerClose && auction.sellerId && user?.sub && auction.sellerId !== user.sub
+}
+
+async function respondClose(id: string, userId: string | undefined, res: Response) {
+  const result = await closeAuctionWithWinner(id, userId)
+  if (!result.ok) return res.status(result.reason === "not_found" ? 404 : 403).json({error: "Cannot close auction"})
+  if ((result as any).deleted) return res.status(204).send()
+  return res.status(200).json((result as any).auction)
+}
+
+function handleBidError(res: Response, result: Extract<PlaceBidResult, {ok:false}>) {
   if (result.reason === "not_found") return res.status(404).json({error:"Not Found"})
   if (result.reason === "closed" || result.reason === "expired") return res.status(409).json({error:"Auction closed"})
   if (result.reason === "owner_forbidden") return res.status(403).json({error:"Owner cannot bid"})
   if (result.reason === "low_bid") return res.status(400).json({error:`Bid must be >= ${result.minAllowed}`})
   return res.status(409).json({error:"Concurrent update, retry"})
 }
+
+type PlaceBidResult = Awaited<ReturnType<typeof placeBid>>

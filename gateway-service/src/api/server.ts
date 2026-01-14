@@ -2,6 +2,7 @@ import express from "express"
 import {createServer} from "http"
 import {createHub} from "../ws/hub"
 import {handleIncoming} from "../services/eventBus"
+import {swaggerMiddleware} from "../docs/swagger"
 
 export async function startServer(port: number) {
   const app = express()
@@ -9,6 +10,8 @@ export async function startServer(port: number) {
   const hub = createHub(httpServer)
 
   app.use(express.json({limit:"1mb"}))
+
+  app.use("/docs", ...swaggerMiddleware())
 
   app.get("/health", (_req,res) => {
     res.status(200).json({status:"ok"})

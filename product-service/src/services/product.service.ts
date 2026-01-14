@@ -64,43 +64,12 @@ export async function listProducts(page: number, limit: number, ownerId?: string
 
 export async function updateProduct(id: string, patch: ProductUpdateDTO, userId?: string) {
   const db = getDb()
-  let _id
-  try { _id = new ObjectId(id) } catch { return null }
-  const existing = await db.collection<ProductDoc>("products").findOne({_id})
+  const existing = await loadProduct(id, db)
   if (!existing) return null
-  if (existing.ownerId && userId && existing.ownerId !== userId) return {forbidden:true} as any
-  const title = patch.title ?? existing.title
-  const price = patch.price ?? existing.price
-  const discountPercent = patch.discountPercent ?? (existing.discountPercent ?? 0)
-  const discountedPrice = calcDiscountedPrice(price, discountPercent)
-  const description = patch.description ?? (existing.description ?? "")
-  const imageBase64 = patch.imageBase64 ?? existing.imageBase64
-  await db.collection("products").updateOne({_id},{
-    $set:{
-      title,
-      price,
-      discountPercent,
-      discountedPrice,
-      category: patch.category ?? existing.category,
-      description,
-      imageBase64,
-      isAuction: typeof patch.isAuction === "boolean" ? patch.isAuction : existing.isAuction,
-      updatedAt:new Date()
-    }
-  })
-  return {
-    id,
-    title,
-    price,
-    discountPercent,
-    discountedPrice,
-    category: patch.category ?? existing.category,
-    description,
-    imageBase64,
-    ownerId: existing.ownerId,
-    ownerName: existing.ownerName,
-    isAuction: typeof patch.isAuction === "boolean" ? patch.isAuction : existing.isAuction
-  }
+  if (isForbiddenOwner(existing, userId)) return {forbidden:true} as any
+  const updated = mergeProductPatch(existing, patch)
+  await db.collection("products").updateOne({_id: existing._id!}, {$set: updated.dbSet})
+  return updated.response
 }
 
 export async function deleteProduct(id: string, userId?: string) {
@@ -126,7 +95,7 @@ function buildProductDoc(dto: ProductCreateDTO, owner?: {id?: string, name?: str
     discountPercent: dto.discountPercent,
     discountedPrice: calcDiscountedPrice(dto.price, dto.discountPercent),
     category: dto.category,
-    description: dto.description,
+    description: dto.description || "",
     imageBase64: dto.imageBase64,
     isAuction: dto.isAuction ?? false,
     ownerId: owner?.id,
@@ -134,4 +103,49 @@ function buildProductDoc(dto: ProductCreateDTO, owner?: {id?: string, name?: str
     createdAt: new Date(),
     updatedAt: new Date()
   }
+}
+
+async function loadProduct(id: string, db: ReturnType<typeof getDb>) {
+  try { return await db.collection<ProductDoc>("products").findOne({_id: new ObjectId(id)}) }
+  catch { return null }
+}
+
+function isForbiddenOwner(existing: ProductDoc, userId?: string) {
+  return !!(existing.ownerId && userId && existing.ownerId !== userId)
+}
+
+function mergeProductPatch(existing: ProductDoc & {_id?: ObjectId}, patch: ProductUpdateDTO) {
+  const title = patch.title ?? existing.title
+  const price = patch.price ?? existing.price
+  const discountPercent = patch.discountPercent ?? (existing.discountPercent ?? 0)
+  const discountedPrice = calcDiscountedPrice(price, discountPercent)
+  const description = patch.description ?? (existing.description ?? "")
+  const imageBase64 = patch.imageBase64 ?? existing.imageBase64
+  const isAuction = typeof patch.isAuction === "boolean" ? patch.isAuction : existing.isAuction
+  const category = patch.category ?? existing.category
+  const dbSet = {
+    title,
+    price,
+    discountPercent,
+    discountedPrice,
+    category,
+    description,
+    imageBase64,
+    isAuction,
+    updatedAt: new Date()
+  }
+  const response = {
+    id: existing._id?.toString(),
+    title,
+    price,
+    discountPercent,
+    discountedPrice,
+    category,
+    description,
+    imageBase64,
+    ownerId: existing.ownerId,
+    ownerName: existing.ownerName,
+    isAuction
+  }
+  return {dbSet, response}
 }

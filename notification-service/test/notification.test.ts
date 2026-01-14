@@ -58,7 +58,7 @@ describe("notification service", () => {
     expect(binding.body.chatId).toBe("123")
   })
 
-  it("prevents duplicate chat binding", async () => {
+  it("still rejects duplicate chat binding without unlink", async () => {
     const init1 = await request(app).post("/auth/telegram/jwt").send({userId:"user-3"})
     await request(app).post("/auth/telegram/bot-callback").send({token: init1.body.token, chatId:"222"})
     const init2 = await request(app).post("/auth/telegram/jwt").send({userId:"user-4"})
@@ -84,5 +84,14 @@ describe("notification service", () => {
   it("returns 204 when deleting non-existent binding", async () => {
     const res = await request(app).delete("/auth/telegram/binding").send({userId:"no-binding"})
     expect(res.status).toBe(204)
+  })
+
+  it("unlinks via bot chat command", async () => {
+    const init = await request(app).post("/auth/telegram/jwt").send({userId:"user-6"})
+    await request(app).post("/auth/telegram/bot-callback").send({token: init.body.token, chatId:"333"})
+    const unlink = await request(app).post("/auth/telegram/bot-unlink").send({chatId:"333"})
+    expect(unlink.status).toBe(200)
+    const binding = await request(app).get("/auth/telegram/binding?userId=user-6")
+    expect(binding.status).toBe(404)
   })
 })
